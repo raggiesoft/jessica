@@ -1,0 +1,69 @@
+# ===========================================
+# Global Configuration for Clara/Amanda/Junia
+# ===========================================
+
+# ===== Identity & Paths =====
+MAIN_MENU_NAME="amanda"
+TOOL_HOME="$HOME/jessica"
+NAMEGEN_DIR="$HOME/jessica/junia"
+
+# ===== Site Manager (Phoebe) =====
+SITEMANAGER_DIR="$TOOL_HOME/clara"
+SITE_MANAGER_SCRIPT="$SITEMANAGER_DIR/phoebe.sh"
+
+# ===== Honeypot (Helena) =====
+HONEYPOT_SCRIPT="$SITEMANAGER_DIR/helena.sh"
+
+
+# ===== UI Colors =====
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# ===== General =====
+SITE_BASE_DIR="$HOME/aubrie"           # Where sites are hosted (glowing-galaxy server)
+CERT_EMAIL="you@example.com"           # Global email for Let's Encrypt/Certbot
+
+# ===== Coralie Defaults =====
+CORALIE_MODE="infra"                   # Default name mode (infra / creative)
+CORALIE_CASE="lower"                   # Default case (lower / proper)
+CORALIE_TYPE="first"                   # Default type (first / last / full)
+CORALIE_GENDER="auto"                  # Default gender (auto / male / female)
+CORALIE_BATCH=1                        # Default batch size
+
+# ===== Lavinia Settings =====
+EXCLUDE_LIST_PATH="$HOME/jessica/junia/list/.exclude_names.txt"
+LAVINIA_BACKUP_DIR="$HOME/jessica/junia/list/backups"
+LAVINIA_LOG_DIR="$HOME/jessica/junia/list/logs"
+
+# ===== Amanda Defaults =====
+ROUTER_FILE_EXTENSION=".php"           # Extension for PHP router files
+SAFE_OUTPUT=false                       # Default: don’t slugify unless requested
+
+# === Phoebe Identity & Paths ===
+VERITY_NAME="verity"  # or phoebe, sylvie, etc.
+CORALIE="$HOME/jessica/junia/coralie.sh"
+SITE_BASE_DIR="$HOME/aubrie"
+
+# ===== Marina Settings =====
+MARINA_BACKUP_DIR="$TOOL_HOME/clara/backups"
+MARINA_RETENTION_DAYS=30
+
+# === Defaults ===
+ROUTER_FILE_EXTENSION=".php"
+ASP_ENVIRONMENT="Production"
+ASP_PORT_DEFAULT=5000
+
+# ===== ASP.NET Defaults =====
+ASP_PORT_DEFAULT=5000
+ASP_ENVIRONMENT="Production"
+
+# ===== Logging =====
+DEPLOYMENT_LOG="$TOOL_HOME/clara/logs/deployments.log"
+ERROR_LOG="$TOOL_HOME/clara/logs/errors.log"
+NAMEGEN_LOG="$NAMEGEN_DIR/logs/namegen.log"
+HONEYPOT_LOG="$SITEMANAGER_DIR/logs/honeypot.log"
+BACKUP_LOG="$TOOL_HOME/clara/logs/backup.log"
+AUDIT_LOG="$TOOL_HOME/clara/logs/audit.log"
+

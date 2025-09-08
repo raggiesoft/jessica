@@ -1,0 +1,36 @@
+# === Jessica Suite Git Ignore ===
+
+# Central config (contains sensitive paths/emails)
+elise/dorian
+
+# Logs
+*.log
+logs/
+*/logs/
+clara/logs/
+junia/list/logs/
+
+# Backups
+backups/
+*/backups/
+
+# VS Code workspace & settings
+jessica.code-workspace
+.vscode/
+
+# OS / editor temp files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Python cache (if any scripts use Python)
+__pycache__/
+*.pyc
+
+# Node modules (if any JS tooling is added later)
+node_modules/
+
+# Certbot and SSL artifacts (generated at runtime)
+etc/letsencrypt/

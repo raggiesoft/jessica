@@ -1,0 +1,342 @@
+#!/bin/bash
+
+# Color Codes
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# --- Root User Execution Check ---
+if [ "$(id -u)" -eq 0 ]; then
+    echo -e "${RED}Error: This script must not be run as root.${NC}"
+    echo "Please run it as a regular user with sudo privileges."
+    exit 1
+fi
+
+# --- User Configuration: Names to Exclude ---
+EXCLUDE_FILE=".exclude_names.txt"
+EXCLUDE_NAMES=()
+SKIPPED_NAME_FLAG=false # Flag to track if a name was skipped
+if [ -f "$EXCLUDE_FILE" ]; then
+    mapfile -t EXCLUDE_NAMES < <(grep -v '^ *#' < "$EXCLUDE_FILE" | grep -v '^$')
+fi
+
+# --- Check for Dependencies ---
+if ! command -v curl &> /dev/null || ! command -v jq &> /dev/null; then
+    echo -e "${RED}Error: This script requires 'curl' and 'jq'.${NC}"
+    echo "Please install them to continue (e.g., 'sudo apt-get update && sudo apt-get install curl jq')."
+    exit 1
+fi
+
+# --- Usage/Help Function ---
+usage() {
+    echo "Usage: $0 [ACTION] [PARAMETERS]"
+    echo "Actions:"
+    echo "  --create         : Creates a new site. Requires --type, --location, --email."
+    echo "  --destroy        : Destroys an existing site. Requires --location."
+    echo "  --get-names      : Generates and displays secure names and setup instructions for manual configuration."
+    echo ""
+    echo "Required Parameters for --create / --destroy:"
+    echo "  --type [PHP|ASP] : The type of site to create."
+    echo "  --location NAME  : The full domain name (e.g., newapp.raggiesoft.com)."
+    echo "  --email EMAIL    : Email for SSL notifications."
+    echo ""
+    echo "Optional Parameters:"
+    echo "  --web-dir-name NAME      : Specify the public-facing router directory name."
+    echo "  --app-dir-name NAME      : Specify the application logic directory name."
+    echo "  --router-file-name NAME.php : Specify the router filename for PHP sites."
+    echo ""
+    echo "ASP.NET Parameters:"
+    echo "  --port PORT      : A unique port for an ASP.NET app (e.g., 5001)."
+    echo "  --app-name NAME  : The name of the ASP.NET project's main DLL (without the .dll extension)."
+    exit 1
+}
+
+# --- Default Variables ---
+ACTION=""
+SITE_TYPE=""
+LOCATION=""
+CERTBOT_EMAIL=""
+APP_PORT=""
+APP_NAME=""
+WEB_DIR_NAME=""
+APP_DIR_NAME=""
+ROUTER_FILE_NAME=""
+USER_HOME=$(eval echo ~${SUDO_USER:-$USER})
+
+# --- Parse Command-Line Arguments ---
+if [ "$#" -eq 0 ]; then
+    usage
+fi
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --create) ACTION="create";;
+        --destroy) ACTION="destroy";;
+        --get-names) ACTION="get-names";;
+        --type) SITE_TYPE="$2"; shift;;
+        --location) LOCATION="$2"; shift;;
+        --email) CERTBOT_EMAIL="$2"; shift;;
+        --port) APP_PORT="$2"; shift;;
+        --app-name) APP_NAME="$2"; shift;;
+        --web-dir-name) WEB_DIR_NAME="$2"; shift;;
+        --app-dir-name) APP_DIR_NAME="$2"; shift;;
+        --router-file-name) ROUTER_FILE_NAME="$2"; shift;;
+        *) echo "Unknown parameter passed: $1"; exit 1;;
+    esac
+    shift
+done
+
+# --- Function to fetch a random name from an API ---
+get_random_name_from_api() {
+    local gender=$1
+    curl -s "https://randomuser.me/api/?gender=${gender}&nat=us,gb,ca,au&inc=name" | jq -r '.results[0].name.first' | tr '[:upper:]' '[:lower:]'
+}
+
+# --- Function to get a unique name, respecting the exclusion list ---
+get_unique_name() {
+    local gender=$1
+    local name=""
+    while true; do
+        name=$(get_random_name_from_api "$gender")
+        if ! [[ " ${EXCLUDE_NAMES[@]} " =~ " ${name} " ]]; then
+            echo "$name"
+            break
+        else
+            SKIPPED_NAME_FLAG=true # Set the flag silently
+        fi
+    done
+}
+
+# --- Function to display the generated names summary ---
+display_names_summary() {
+    local web_dir=$1
+    local app_dir=$2
+    local router_file=$3
+
+    echo -e "--------------------------------------------------"
+    printf "${CYAN}%-25s${NC} %s\n" "Web/Public Directory:" "$web_dir"
+    printf "${CYAN}%-25s${NC} %s\n" "Application Directory:" "$app_dir"
+    if [ -n "$router_file" ]; then
+        printf "${CYAN}%-25s${NC} %s\n" "Router PHP File:" "$router_file"
+    fi
+    if [ "$SKIPPED_NAME_FLAG" = true ]; then
+        echo -e "${YELLOW}NOTE: A name on the exclusion list has been skipped over.${NC}"
+    fi
+    echo -e "--------------------------------------------------"
+}
+
+# --- Function to ONLY get and display names and instructions ---
+get_names_only() {
+    echo -e "${GREEN}--- Generating Secure Names & Instructions for Manual Setup ---${NC}"
+    if [ ${#EXCLUDE_NAMES[@]} -gt 0 ]; then
+        echo -e "${YELLOW}Respecting ${#EXCLUDE_NAMES[@]} names from the exclusion file.${NC}"
+    fi
+
+    local boy_name=$(get_unique_name "male")
+    local girl_name=$(get_unique_name "female")
+    local router_name="$(get_unique_name "female").php"
+    local web_dir
+    local app_dir
+    local username=${SUDO_USER:-$USER}
+
+    if (( RANDOM % 2 )); then
+        web_dir=$boy_name
+        app_dir=$girl_name
+    else
+        web_dir=$girl_name
+        app_dir=$boy_name
+    fi
+
+    echo
+    echo -e "${GREEN}==================[ Generated Names ]==================${NC}"
+    display_names_summary "$web_dir" "$app_dir" "$router_name"
+    echo
+    echo -e "${YELLOW}--- Configuration Instructions ---${NC}"
+    echo "1.  In your hosting panel (e.g., Laravel Forge):"
+    echo "    - When creating the site, set the 'Web Directory' to: /${web_dir}"
+    echo
+    echo "2.  In your project's Git repository:"
+    echo "    - Place all your application code (PHP files, includes, etc.) inside the '${app_dir}' folder."
+    echo "    - Place your router file inside the '${web_dir}' folder and name it '${router_name}'."
+    echo
+    echo "3.  In your Nginx Configuration:"
+    echo "    - Ensure the 'root' directive points to the correct web directory."
+    echo "    - Ensure the 'index' directive points to your unique router file."
+    echo "    - Use a 'try_files' directive to enable the Front Controller pattern."
+    echo
+    echo -e "${CYAN}--- Example Nginx Config ---${NC}"
+    echo "server {"
+    echo "    root /home/${username}/yourdomain.com/${web_dir};"
+    echo "    index ${router_name};"
+    echo ""
+    echo "    location / {"
+    echo "        try_files \$uri \$uri/ /${router_name}?\$query_string;"
+    echo "    }"
+    echo "    # ..."
+    echo "}"
+    echo -e "--------------------------------------------------"
+}
+
+# --- Function to Create a Site ---
+create_site() {
+    echo -e "${GREEN}--- Creating site: $LOCATION ---${NC}"
+
+    if [ -z "$WEB_DIR_NAME" ] || [ -z "$APP_DIR_NAME" ]; then
+        echo "Fetching random directory names via API..."
+        BOY_NAME=$(get_unique_name "male")
+        GIRL_NAME=$(get_unique_name "female")
+        if (( RANDOM % 2 )); then
+            WEB_ROUTER=$BOY_NAME
+            APP_FOLDER=$GIRL_NAME
+        else
+            WEB_ROUTER=$GIRL_NAME
+            APP_FOLDER=$BOY_NAME
+        fi
+    else
+        echo "Using user-provided directory names..."
+        WEB_ROUTER=$WEB_DIR_NAME
+        APP_FOLDER=$APP_DIR_NAME
+    fi
+
+    if [ "$SITE_TYPE" == "PHP" ]; then
+        if [ -z "$ROUTER_FILE_NAME" ]; then
+             ROUTER_FILE="$(get_unique_name "female").php"
+             echo "Generating random router filename..."
+        else
+            ROUTER_FILE=$ROUTER_FILE_NAME
+            echo "Using user-provided router filename..."
+        fi
+
+        mkdir -p "$USER_HOME/$LOCATION/$WEB_ROUTER"
+        mkdir -p "$USER_HOME/$LOCATION/$APP_FOLDER"
+        echo "Creating Nginx configuration for PHP site..."
+        sudo bash -c "cat > /etc/nginx/sites-available/$LOCATION" <<EOF
+server {
+    listen 80;
+    server_name $LOCATION;
+    root $USER_HOME/$LOCATION/$WEB_ROUTER;
+    index $ROUTER_FILE;
+    location / {
+        try_files \$uri \$uri/ /$ROUTER_FILE?\$query_string;
+    }
+    location ~ \.php\$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+    }
+}
+EOF
+        touch "$USER_HOME/$LOCATION/$WEB_ROUTER/$ROUTER_FILE"
+        echo "<?php // Router for $LOCATION" > "$USER_HOME/$LOCATION/$WEB_ROUTER/$ROUTER_FILE"
+
+    elif [ "$SITE_TYPE" == "ASP" ]; then
+        if [ -z "$APP_PORT" ] || [ -z "$APP_NAME" ]; then echo -e "${RED}Error: ASP sites require --port and --app-name.${NC}"; usage; fi
+        ASP_WEB_ROUTER=$APP_FOLDER # For ASP, we just use one folder
+        mkdir -p "$USER_HOME/$LOCATION/$ASP_WEB_ROUTER"
+        echo "Creating Nginx configuration for ASP.NET site on port $APP_PORT..."
+        sudo bash -c "cat > /etc/nginx/sites-available/$LOCATION" <<EOF
+upstream ${LOCATION}_upstream { server 127.0.0.1:$APP_PORT; }
+server {
+    listen 80;
+    server_name $LOCATION;
+    location / {
+        proxy_pass http://${LOCATION}_upstream;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+        echo "Creating systemd service file for $APP_NAME..."
+        sudo bash -c "cat > /etc/systemd/system/kestrel-${LOCATION}.service" <<EOF
+[Unit]
+Description=$APP_NAME ASP.NET Core Application
+[Service]
+WorkingDirectory=$USER_HOME/$LOCATION/$ASP_WEB_ROUTER
+ExecStart=/usr/bin/dotnet $USER_HOME/$LOCATION/$ASP_WEB_ROUTER/${APP_NAME}.dll --urls "http://localhost:$APP_PORT"
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=${APP_NAME}
+User=${SUDO_USER}
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+[Install]
+WantedBy=multi-user.target
+EOF
+        echo "Enabling and starting systemd service..."
+        sudo systemctl daemon-reload
+        sudo systemctl enable "kestrel-${LOCATION}.service"
+        sudo systemctl start "kestrel-${LOCATION}.service"
+    fi
+
+    echo "Enabling Nginx site..."
+    sudo ln -s "/etc/nginx/sites-available/$LOCATION" "/etc/nginx/sites-enabled/"
+    echo "Testing and restarting Nginx..."
+    if sudo nginx -t; then
+        sudo systemctl restart nginx
+    else
+        echo -e "${RED}Error: Nginx configuration test failed. Aborting.${NC}"; sudo rm "/etc/nginx/sites-enabled/$LOCATION"; exit 1
+    fi
+
+    echo "Running Certbot to secure the site..."
+    sudo certbot --nginx --redirect --agree-tos -m "$CERTBOT_EMAIL" -d "$LOCATION" --no-eff-email
+
+    echo -e "${GREEN}--- Site $LOCATION created successfully! ---${NC}"
+    display_names_summary "$WEB_ROUTER" "$APP_FOLDER" "$ROUTER_FILE"
+}
+
+# --- Function to Destroy a Site ---
+destroy_site() {
+    echo -e "${YELLOW}--- Destroying site: $LOCATION ---${NC}"
+    if [ ! -f "/etc/nginx/sites-available/$LOCATION" ]; then echo -e "${RED}Error: Configuration for $LOCATION does not exist.${NC}"; exit 1; fi
+
+    if [ -f "/etc/systemd/system/kestrel-${LOCATION}.service" ]; then
+        echo "Stopping and disabling systemd service..."
+        sudo systemctl stop "kestrel-${LOCATION}.service"
+        sudo systemctl disable "kestrel-${LOCATION}.service"
+        sudo rm "/etc/systemd/system/kestrel-${LOCATION}.service"
+        sudo systemctl daemon-reload
+    fi
+
+    echo "Disabling and removing Nginx configuration..."
+    sudo rm -f "/etc/nginx/sites-enabled/$LOCATION"
+    sudo rm -f "/etc/nginx/sites-available/$LOCATION"
+
+    if sudo nginx -t; then sudo systemctl restart nginx; else echo -e "${RED}Error: Nginx config test failed.${NC}"; exit 1; fi
+
+    echo "Revoking SSL certificate..."
+    sudo certbot delete --cert-name "$LOCATION"
+
+    read -p "Do you want to delete the web directory ($USER_HOME/$LOCATION)? [y/N]: " DELETE_DIR
+    if [[ "$DELETE_DIR" =~ ^[Yy]$ ]]; then echo "Deleting web directory..."; sudo rm -rf "$USER_HOME/$LOCATION"; fi
+
+    echo -e "${GREEN}--- Site $LOCATION destroyed successfully! ---${NC}"
+}
+
+# --- Main Script Logic ---
+case $ACTION in
+    create)
+        if [ -z "$SITE_TYPE" ] || [ -z "$LOCATION" ] || [ -z "$CERTBOT_EMAIL" ]; then usage; fi
+        echo -e "${YELLOW}Requesting administrator privileges...${NC}"
+        sudo -v; if [ $? -ne 0 ]; then echo -e "${RED}Sudo password required. Aborting.${NC}"; exit 1; fi
+        while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+        create_site
+        ;;
+    destroy)
+        if [ -z "$LOCATION" ]; then usage; fi
+        echo -e "${YELLOW}Requesting administrator privileges...${NC}"
+        sudo -v; if [ $? -ne 0 ]; then echo -e "${RED}Sudo password required. Aborting.${NC}"; exit 1; fi
+        while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+        destroy_site
+        ;;
+    get-names)
+        get_names_only
+        ;;
+    *)
+        echo -e "${RED}Error: You must specify a valid action.${NC}"
+        usage
+        ;;
+esac
