@@ -36,8 +36,9 @@ SALACIA_PROFILE = "Salacia"
 
 # --- Smart Color Configuration ---
 # Check if the script is running in an interactive terminal that supports color.
-# If not (e.g., in the MOTD), use empty strings to disable color codes.
-if sys.stdout.isatty():
+# We check if it's a TTY or if the TERM variable is set to a color-capable type.
+# This is more robust for different SSH environments.
+if sys.stdout.isatty() or os.environ.get("TERM") in ["xterm", "xterm-256color", "screen"]:
     YELLOW, NC = '\033[1;33m', '\033[0m'
 else:
     YELLOW, NC = '', ''
@@ -89,9 +90,9 @@ try:
             elif line.startswith("SALACIA_PROFILE="):
                 SALACIA_PROFILE = line.split('=', 1)[1].strip('"')
             # Color codes from dorian will only be used if the terminal supports them
-            elif line.startswith("YELLOW=") and sys.stdout.isatty():
+            elif line.startswith("YELLOW=") and (sys.stdout.isatty() or os.environ.get("TERM") in ["xterm", "xterm-256color", "screen"]):
                 YELLOW = line.split('=', 1)[1].strip("'")
-            elif line.startswith("NC=") and sys.stdout.isatty():
+            elif line.startswith("NC=") and (sys.stdout.isatty() or os.environ.get("TERM") in ["xterm", "xterm-256color", "screen"]):
                 NC = line.split('=', 1)[1].strip("'")
 except (FileNotFoundError, IndexError):
     pass
