@@ -12,7 +12,7 @@
 #
 #   This script has optional dependencies for richer greetings and GUI control.
 #   One-time setup for full functionality:
-#     sudo apt-get install python3-pip
+#     sudo apt-get install python3-pip ncurses-bin
 #     pip3 install suntime pytz holidays
 #     # On KDE, ensure 'konsole' and 'plasma-desktop' are installed for GUI control.
 
@@ -35,10 +35,28 @@ AMBER_PROFILE = "Amber"
 SALACIA_PROFILE = "Salacia"
 
 # --- Smart Color Configuration ---
-# Check if the script is running in an interactive terminal that supports color.
-# We check if it's a TTY or if the TERM variable is set to a color-capable type.
-# This is more robust for different SSH environments.
-if sys.stdout.isatty() or os.environ.get("TERM") in ["xterm", "xterm-256color", "screen"]:
+def supports_color() -> bool:
+    """
+    Check if the terminal supports color. This is a robust check
+    that queries the terminal directly via `tput`.
+    """
+    if not sys.stdout.isatty():
+        return False
+    try:
+        # tput is a standard Unix utility for terminal capabilities
+        result = subprocess.run(['tput', 'colors'], capture_output=True, text=True)
+        if result.returncode == 0:
+            num_colors = int(result.stdout.strip())
+            return num_colors >= 8
+    except (ValueError, FileNotFoundError):
+        # Fallback if tput isn't available or gives weird output
+        pass
+    # Final fallback check for common TERM values
+    if os.environ.get("TERM") in ["xterm", "xterm-256color", "screen"]:
+        return True
+    return False
+
+if supports_color():
     YELLOW, NC = '\033[1;33m', '\033[0m'
 else:
     YELLOW, NC = '', ''
@@ -89,10 +107,9 @@ try:
                 AMBER_PROFILE = line.split('=', 1)[1].strip('"')
             elif line.startswith("SALACIA_PROFILE="):
                 SALACIA_PROFILE = line.split('=', 1)[1].strip('"')
-            # Color codes from dorian will only be used if the terminal supports them
-            elif line.startswith("YELLOW=") and (sys.stdout.isatty() or os.environ.get("TERM") in ["xterm", "xterm-256color", "screen"]):
+            elif line.startswith("YELLOW=") and supports_color():
                 YELLOW = line.split('=', 1)[1].strip("'")
-            elif line.startswith("NC=") and (sys.stdout.isatty() or os.environ.get("TERM") in ["xterm", "xterm-256color", "screen"]):
+            elif line.startswith("NC=") and supports_color():
                 NC = line.split('=', 1)[1].strip("'")
 except (FileNotFoundError, IndexError):
     pass
