@@ -33,8 +33,9 @@ AMBER_SCHEME = "Morning Amber"
 SALACIA_SCHEME = "Salacia's Lantern"
 AMBER_PROFILE = "Amber"
 SALACIA_PROFILE = "Salacia"
+YELLOW, NC = '', '' # Default to no color
 
-# --- Smart Color Configuration ---
+# --- Smart Color Configuration Function ---
 def supports_color() -> bool:
     """
     Check if the terminal supports color. This is a robust check
@@ -43,23 +44,15 @@ def supports_color() -> bool:
     if not sys.stdout.isatty():
         return False
     try:
-        # tput is a standard Unix utility for terminal capabilities
         result = subprocess.run(['tput', 'colors'], capture_output=True, text=True)
         if result.returncode == 0:
             num_colors = int(result.stdout.strip())
             return num_colors >= 8
     except (ValueError, FileNotFoundError):
-        # Fallback if tput isn't available or gives weird output
         pass
-    # Final fallback check for common TERM values
     if os.environ.get("TERM") in ["xterm", "xterm-256color", "screen"]:
         return True
     return False
-
-if supports_color():
-    YELLOW, NC = '\033[1;33m', '\033[0m'
-else:
-    YELLOW, NC = '', ''
 
 # --- Optional Dependency Checks ---
 try:
@@ -89,30 +82,6 @@ def parse_dms_coords(coord_str: str) -> tuple[float, float] | None:
     lon_dd = float(lon_deg) + float(lon_min) / 60 + float(lon_sec) / 3600
     if lon_dir == 'W': lon_dd *= -1
     return lat_dd, lon_dd
-
-try:
-    with open(f"{os.path.expanduser('~')}/jessica/elise/dorian") as f:
-        config_content = f.read()
-        for line in config_content.splitlines():
-            if line.startswith("SOLENE_COORDS_GOOGLE="):
-                parsed = parse_dms_coords(line.split('=', 1)[1].strip('"'))
-                if parsed: LAT, LON = parsed
-            elif line.startswith("SOLENE_TIMEZONE="):
-                TIMEZONE = line.split('=', 1)[1].strip('"')
-            elif line.startswith("AMBER_SCHEME="):
-                AMBER_SCHEME = line.split('=', 1)[1].strip('"')
-            elif line.startswith("SALACIA_SCHEME="):
-                SALACIA_SCHEME = line.split('=', 1)[1].strip('"')
-            elif line.startswith("AMBER_PROFILE="):
-                AMBER_PROFILE = line.split('=', 1)[1].strip('"')
-            elif line.startswith("SALACIA_PROFILE="):
-                SALACIA_PROFILE = line.split('=', 1)[1].strip('"')
-            elif line.startswith("YELLOW=") and supports_color():
-                YELLOW = line.split('=', 1)[1].strip("'")
-            elif line.startswith("NC=") and supports_color():
-                NC = line.split('=', 1)[1].strip("'")
-except (FileNotFoundError, IndexError):
-    pass
 
 # --- Date Calculation Helpers ---
 def easter_date(year: int) -> date:
@@ -206,11 +175,45 @@ def run_command(command: list):
 
 # --- Main Execution ---
 if __name__ == "__main__":
+    
+    args = sys.argv[1:]
+
+    # --- Manual Color Override ---
+    # Check for --force-color flag first. This overrides all other checks.
+    force_color = "--force-color" in args
+    if force_color:
+        args.remove("--force-color")
+
+    # Now set the color variables based on the check.
+    if force_color or supports_color():
+        YELLOW, NC = '\033[1;33m', '\033[0m'
+    
+    # --- Load Config (which may override colors if supported) ---
+    try:
+        with open(f"{os.path.expanduser('~')}/jessica/elise/dorian") as f:
+            config_content = f.read()
+            for line in config_content.splitlines():
+                if line.startswith("SOLENE_COORDS_GOOGLE="):
+                    parsed = parse_dms_coords(line.split('=', 1)[1].strip('"'))
+                    if parsed: LAT, LON = parsed
+                elif line.startswith("SOLENE_TIMEZONE="):
+                    TIMEZONE = line.split('=', 1)[1].strip('"')
+                elif line.startswith("AMBER_SCHEME="): AMBER_SCHEME = line.split('=', 1)[1].strip('"')
+                elif line.startswith("SALACIA_SCHEME="): SALACIA_SCHEME = line.split('=', 1)[1].strip('"')
+                elif line.startswith("AMBER_PROFILE="): AMBER_PROFILE = line.split('=', 1)[1].strip('"')
+                elif line.startswith("SALACIA_PROFILE="): SALACIA_PROFILE = line.split('=', 1)[1].strip('"')
+                elif line.startswith("YELLOW=") and (force_color or supports_color()):
+                    YELLOW = line.split('=', 1)[1].strip("'")
+                elif line.startswith("NC=") and (force_color or supports_color()):
+                    NC = line.split('=', 1)[1].strip("'")
+    except (FileNotFoundError, IndexError):
+        pass
+
+    # --- Debug Flag Parsing ---
     force_mode = None
     boot_mode = False
     test_date = None
     
-    args = sys.argv[1:]
     is_debug = "--debug" in args
     if is_debug:
         args.remove("--debug")
@@ -286,4 +289,3 @@ if __name__ == "__main__":
     print()
     print(f"{YELLOW}Solène observes:{NC} '{final_msg}'")
     print()
-
