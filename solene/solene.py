@@ -179,12 +179,10 @@ if __name__ == "__main__":
     args = sys.argv[1:]
 
     # --- Manual Color Override ---
-    # Check for --force-color flag first. This overrides all other checks.
     force_color = "--force-color" in args
     if force_color:
         args.remove("--force-color")
 
-    # Now set the color variables based on the check.
     if force_color or supports_color():
         YELLOW, NC = '\033[1;33m', '\033[0m'
     
@@ -289,3 +287,4 @@ if __name__ == "__main__":
     print()
     print(f"{YELLOW}Solène observes:{NC} '{final_msg}'")
     print()
+
