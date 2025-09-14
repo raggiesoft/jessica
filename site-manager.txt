@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This was my OLD site-manager (before everything was compartmentalized). We know for sure that this code works
+# This is meant to help the AI provider when we're working on Jessica
+
 # Color Codes
 GREEN='\033[0;32m'
 RED='\033[0;31m'
