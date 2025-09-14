@@ -1,69 +1,70 @@
-# ===========================================
-# Global Configuration for Clara/Amanda/Junia
-# ===========================================
+# ==========================================================
+# Global Configuration for the Jessica Suite (Bastion Host)
+# ==========================================================
+# This file, once copied to 'dorian', acts as the central brain
+# for all scripts running on the 'sentinel-star' bastion host.
 
-# ===== Identity & Paths =====
-MAIN_MENU_NAME="amanda"
+# ===== Core Identity & Paths =====
+# These paths define where the core components of the Jessica suite live
+# on the bastion host itself.
 TOOL_HOME="$HOME/jessica"
-NAMEGEN_DIR="$HOME/jessica/junia"
+CLARA_DIR="$TOOL_HOME/clara"
+JUNIA_DIR="$TOOL_HOME/junia"
+SOLENE_DIR="$TOOL_HOME/solene"
 
-# ===== Site Manager (Phoebe) =====
-SITEMANAGER_DIR="$TOOL_HOME/clara"
-SITE_MANAGER_SCRIPT="$SITEMANAGER_DIR/phoebe.sh"
-
-# ===== Honeypot (Helena) =====
-HONEYPOT_SCRIPT="$SITEMANAGER_DIR/helena.sh"
-
+# ===== Remote Server Fleet Configuration =====
+# This is the most important new section for the bastion host.
+# It defines the servers that Thalia and other scripts can manage.
+# Format: "Menu Name|user@host|/path/to/sites/on/remote/server"
+SERVERS=(
+    "staging-server|user@staging.example.com|/home/user/sites"
+    "production-server|user@production.example.com|/home/user/sites"
+)
 
 # ===== UI Colors =====
+# Standard ANSI color codes for consistent script output.
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
-# ===== General =====
-SITE_BASE_DIR="$HOME/aubrie"           # Where sites are hosted (glowing-galaxy server)
-CERT_EMAIL="you@example.com"           # Global email for Let's Encrypt/Certbot
+# ===== General & Tool Defaults =====
+# These are default values used by scripts like Phoebe when she generates
+# configuration files that will be deployed to remote servers.
+CERT_EMAIL="you@example.com" # Global email for Let's Encrypt/Certbot
+ROUTER_FILE_EXTENSION=".php"                 # Default extension for PHP routers
+ASP_ENVIRONMENT="Production"
+ASP_PORT_DEFAULT=5000
 
-# ===== Coralie Defaults =====
-CORALIE_MODE="infra"                   # Default name mode (infra / creative)
-CORALIE_CASE="lower"                   # Default case (lower / proper)
-CORALIE_TYPE="first"                   # Default type (first / last / full)
-CORALIE_GENDER="auto"                  # Default gender (auto / male / female)
-CORALIE_BATCH=1                        # Default batch size
+# ===== Coralie (Name Generation) Defaults =====
+CORALIE_SCRIPT="$JUNIA_DIR/coralie.sh"
+CORALIE_MODE="infra"
+CORALIE_CASE="lower"
+CORALIE_TYPE="first"
+CORALIE_GENDER="auto"
 
-# ===== Lavinia Settings =====
-EXCLUDE_LIST_PATH="$HOME/jessica/junia/list/.exclude_names.txt"
-LAVINIA_BACKUP_DIR="$HOME/jessica/junia/list/backups"
-LAVINIA_LOG_DIR="$HOME/jessica/junia/list/logs"
+# ===== Lavinia (Name Sanitizer) Settings =====
+EXCLUDE_LIST_PATH="$JUNIA_DIR/list/.exclude_names.txt"
+LAVINIA_BACKUP_DIR="$JUNIA_DIR/list/backups"
+LAVINIA_LOG_DIR="$JUNIA_DIR/list/logs"
 
-# ===== Amanda Defaults =====
-ROUTER_FILE_EXTENSION=".php"           # Extension for PHP router files
-SAFE_OUTPUT=false                       # Default: don’t slugify unless requested
-
-# === Phoebe Identity & Paths ===
-VERITY_NAME="verity"  # or phoebe, sylvie, etc.
-CORALIE="$HOME/jessica/junia/coralie.sh"
-SITE_BASE_DIR="$HOME/aubrie"
-
-# ===== Marina Settings =====
-MARINA_BACKUP_DIR="$TOOL_HOME/clara/backups"
+# ===== Marina (Backup) Settings =====
+MARINA_BACKUP_DIR="$CLARA_DIR/backups"
 MARINA_RETENTION_DAYS=30
 
-# === Defaults ===
-ROUTER_FILE_EXTENSION=".php"
-ASP_ENVIRONMENT="Production"
-ASP_PORT_DEFAULT=5000
-
-# ===== ASP.NET Defaults =====
-ASP_PORT_DEFAULT=5000
-ASP_ENVIRONMENT="Production"
+# ===== Solène's Location (for MOTD) =====
+# Coordinates for the bastion host's location to provide accurate greetings.
+# Paste the coordinates directly from Google Maps here.
+SOLENE_COORDS_GOOGLE="40°42'46.0\"N 74°00'21.5\"W"
+SOLENE_TIMEZONE="America/New_York"
 
 # ===== Logging =====
-DEPLOYMENT_LOG="$TOOL_HOME/clara/logs/deployments.log"
-ERROR_LOG="$TOOL_HOME/clara/logs/errors.log"
-NAMEGEN_LOG="$NAMEGEN_DIR/logs/namegen.log"
-HONEYPOT_LOG="$SITEMANAGER_DIR/logs/honeypot.log"
-BACKUP_LOG="$TOOL_HOME/clara/logs/backup.log"
-AUDIT_LOG="$TOOL_HOME/clara/logs/audit.log"
+# Defines where all operational logs for the Jessica suite are stored
+# on the bastion host. All scripts should log to this central directory.
+LOG_DIR="$CLARA_DIR/logs"
+DEPLOYMENT_LOG="$LOG_DIR/deployments.log"
+AUDIT_LOG="$LOG_DIR/audit.log"
+ERROR_LOG="$LOG_DIR/errors.log"
+NAMEGEN_LOG="$LOG_DIR/namegen.log" # For Coralie/Lavinia
+BACKUP_LOG="$LOG_DIR/backup.log"   # For Marina
 
