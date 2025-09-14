@@ -29,11 +29,18 @@ import shutil
 LAT = 36.94
 LON = -76.27
 TIMEZONE = "America/New_York"
-YELLOW, NC = '\033[1;33m', '\033[0m'
 AMBER_SCHEME = "Morning Amber"
 SALACIA_SCHEME = "Salacia's Lantern"
 AMBER_PROFILE = "Amber"
 SALACIA_PROFILE = "Salacia"
+
+# --- Smart Color Configuration ---
+# Check if the script is running in an interactive terminal that supports color.
+# If not (e.g., in the MOTD), use empty strings to disable color codes.
+if sys.stdout.isatty():
+    YELLOW, NC = '\033[1;33m', '\033[0m'
+else:
+    YELLOW, NC = '', ''
 
 # --- Optional Dependency Checks ---
 try:
@@ -73,10 +80,6 @@ try:
                 if parsed: LAT, LON = parsed
             elif line.startswith("SOLENE_TIMEZONE="):
                 TIMEZONE = line.split('=', 1)[1].strip('"')
-            elif line.startswith("YELLOW="):
-                YELLOW = line.split('=', 1)[1].strip("'")
-            elif line.startswith("NC="):
-                NC = line.split('=', 1)[1].strip("'")
             elif line.startswith("AMBER_SCHEME="):
                 AMBER_SCHEME = line.split('=', 1)[1].strip('"')
             elif line.startswith("SALACIA_SCHEME="):
@@ -85,6 +88,11 @@ try:
                 AMBER_PROFILE = line.split('=', 1)[1].strip('"')
             elif line.startswith("SALACIA_PROFILE="):
                 SALACIA_PROFILE = line.split('=', 1)[1].strip('"')
+            # Color codes from dorian will only be used if the terminal supports them
+            elif line.startswith("YELLOW=") and sys.stdout.isatty():
+                YELLOW = line.split('=', 1)[1].strip("'")
+            elif line.startswith("NC=") and sys.stdout.isatty():
+                NC = line.split('=', 1)[1].strip("'")
 except (FileNotFoundError, IndexError):
     pass
 
@@ -198,14 +206,12 @@ if __name__ == "__main__":
                 print(f"{YELLOW}Error:{NC} Invalid date format: {args[0]}. Use YYYY-MM-DD.")
                 sys.exit(1)
 
-    # Set timezone, falling back to None if unavailable
     tz = None
     try:
         tz = ZoneInfo(TIMEZONE)
     except ZoneInfoNotFoundError:
         pass
 
-    # Determine the 'now' datetime object, respecting the test_date
     if test_date:
         current_time = datetime.now(tz).time() if tz else datetime.now().time()
         now = datetime.combine(test_date, current_time, tzinfo=tz)
