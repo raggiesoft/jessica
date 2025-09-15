@@ -29,6 +29,7 @@ NAME_TYPE="first"         # first, last, full
 NAME_CASE="proper"        # proper, lower
 NAME_MODE="infra"         # infra = web safe, creative = keep accents
 GENDER="auto"             # auto, male, female
+ERA=""                    # NEW: classic, 80s, modern, etc.
 USE_API=false
 BATCH_COUNT=1
 SAFE_OUTPUT=false
@@ -44,28 +45,20 @@ usage() {
     echo "  -c, --case   [case]  : proper, lower. Default: proper"
     echo "  -m, --mode   [mode]  : infra, creative. Default: infra"
     echo "  -g, --gender [g]     : male, female, auto (first names only). Default: auto"
+    echo "  -e, --era    [era]   : Name generation era (e.g., 80s, classic, modern)."
     echo "  -a, --use-api        : Force API instead of local files"
     echo "  -b, --batch  [num]   : Generate multiple names"
     echo "  -s, --safe           : Output filesystem-safe slug"
     echo "  -h, --help           : Show this help"
-    echo ""
-    echo "Lavinia control modes:"
-    echo "     --sanitize        : Live sanitize (with backups)"
-    echo "     --restore         : Restore most recent backup"
-    echo "     --delete-backups  : Delete all Lavinia backups"
-    echo "     --sanitize-before : Run Lavinia live sanitize before name generation"
+    # ... (Lavinia control modes)
     exit 1
 }
 
 pluralize() {
     local name="$1"
     case "$name" in
-        *s|*x|*z|*ch|*sh)
-            echo "${name}es"
-            ;;
-        *)
-            echo "${name}s"
-            ;;
+        *s|*x|*z|*ch|*sh) echo "${name}es" ;;
+        *) echo "${name}s" ;;
     esac
 }
 
@@ -94,12 +87,22 @@ get_name() {
 
     while true; do
         local nat_dir="$NAME_LIST_DIR/$NATIONALITY"
-        local name_file="$nat_dir/${name_source}.txt"
-        [ "$name_source" == "first" ] && name_file="$nat_dir/${gender}_first.txt"
+        local generic_name_file="$nat_dir/${gender}_first.txt"
+        local era_name_file="$nat_dir/${gender}_first_${ERA}.txt"
+        local name_file # Declare variable
+
+        if [ "$name_source" == "first" ] && [ -n "$ERA" ] && [ -f "$era_name_file" ]; then
+            name_file="$era_name_file"
+        elif [ "$name_source" == "first" ]; then
+            name_file="$generic_name_file"
+        else # Last names
+            name_file="$nat_dir/last.txt"
+        fi
 
         if [ "$USE_API" = false ] && [ -f "$name_file" ]; then
             proper_name=$(get_name_from_file "$name_file")
         else
+            # Fallback to API if file doesn't exist or API is forced
             [ "$USE_API" = true ] && echo "Forcing API lookup..." >&2
             local api_result
             api_result=$(get_name_from_api "$NATIONALITY")
@@ -111,12 +114,8 @@ get_name() {
         fi
 
         normalized_name=$(normalize_name "$proper_name")
-        if [ "$NAME_MODE" == "creative" ]; then
-            check_name=$(echo "$normalized_name" | tr '[:upper:]' '[:lower:]')
-        else
-            proper_name="$normalized_name"
-            check_name=$(echo "$proper_name" | tr '[:upper:]' '[:lower:]')
-        fi
+        check_name=$(echo "$normalized_name" | tr '[:upper:]' '[:lower:]')
+        proper_name="$normalized_name"
 
         if ! [[ " ${EXCLUDE_NAMES[@]} " =~ " ${check_name} " ]]; then
             if [ "$NAME_CASE" == "lower" ]; then
@@ -134,28 +133,31 @@ get_name() {
 
 interactive_mode() {
     echo -e "${GREEN}--- Interactive Character Generation ---${NC}"
-    local MEN_COUNT
-    local WOMEN_COUNT
-    local same_last_choice
+    local MEN_COUNT WOMEN_COUNT same_last_choice
     local SAME_LAST=true
 
     while true; do
         read -rp "How many men? " MEN_COUNT
-        if [[ "$MEN_COUNT" =~ ^[1-9][0-9]*$ ]]; then
-            break
-        else
-            echo -e "${RED}Please enter a number that is 1 or greater.${NC}"
-        fi
+        [[ "$MEN_COUNT" =~ ^[1-9][0-9]*$ ]] && break || echo -e "${RED}Please enter a number that is 1 or greater.${NC}"
     done
 
     while true; do
         read -rp "How many women? " WOMEN_COUNT
-        if [[ "$WOMEN_COUNT" =~ ^[1-9][0-9]*$ ]]; then
-            break
-        else
-            echo -e "${RED}Please enter a number that is 1 or greater.${NC}"
-        fi
+        [[ "$WOMEN_COUNT" =~ ^[1-9][0-9]*$ ]] && break || echo -e "${RED}Please enter a number that is 1 or greater.${NC}"
     done
+    
+    echo "Select a name era:"
+    echo "  1) Classic (e.g., Walter, Dorothy)"
+    echo "  2) 80s (e.g., David, Jessica)"
+    echo "  3) Modern (e.g., Noah, Olivia)"
+    echo "  4) Mixed (any era)"
+    read -rp "Choice [1-4]: " era_choice
+    case "$era_choice" in
+        1) ERA="classic" ;;
+        2) ERA="80s" ;;
+        3) ERA="modern" ;;
+        *) ERA="" ;; # Default to mixed
+    esac
 
     read -rp "Should they all share the same last name? [Y/n]: " same_last_choice
     same_last_choice=${same_last_choice:-Y}
@@ -192,35 +194,19 @@ EXCLUDE_NAMES=()
 
 # === Script Entry Point ===
 if [[ "$1" == "--sanitize" || "$1" == "--restore" || "$1" == "--delete-backups" ]]; then
-    if [[ -x "$LAVINIA" ]]; then
-        "$LAVINIA" "$1"
-        exit $?
-    else
-        echo -e "${RED}⚠️ Lavinia not found or not executable at: $LAVINIA${NC}"
-        exit 1
-    fi
+    if [[ -x "$LAVINIA" ]]; then "$LAVINIA" "$1"; exit $?; else echo -e "${RED}⚠️ Lavinia not found or not executable at: $LAVINIA${NC}"; exit 1; fi
 fi
 
-# NEW LOGIC: Handle --sanitize-before and then decide what to do next
-SANITIZE_BEFORE=false
 if [[ "$1" == "--sanitize-before" ]]; then
-    SANITIZE_BEFORE=true
-    shift # Consume the --sanitize-before argument
-    if [[ -x "$LAVINIA" ]]; then
-        echo "🧹 Running Lavinia before generating names..."
-        "$LAVINIA" --sanitize # Explicitly call sanitize
-    else
-        echo -e "${RED}⚠️ Lavinia not found or not executable at: $LAVINIA${NC}"
-    fi
+    shift
+    if [[ -x "$LAVINIA" ]]; then echo "🧹 Running Lavinia before generating names..."; "$LAVINIA" --sanitize; else echo -e "${RED}⚠️ Lavinia not found or not executable at: $LAVINIA${NC}"; fi
 fi
 
-# If no arguments remain, run interactive mode.
 if [ "$#" -eq 0 ]; then
     interactive_mode
     exit 0
 fi
 
-# If arguments remain, parse them for standard execution.
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -n|--nat) NATIONALITY="$2"; shift;;
@@ -228,6 +214,7 @@ while [[ "$#" -gt 0 ]]; do
         -c|--case) NAME_CASE="$2"; shift;;
         -m|--mode) NAME_MODE="$2"; shift;;
         -g|--gender) GENDER="$2"; shift;;
+        -e|--era) ERA="$2"; shift;; # New flag
         -a|--use-api) USE_API=true;;
         -b|--batch) BATCH_COUNT="$2"; shift;;
         -s|--safe) SAFE_OUTPUT=true;;
@@ -238,23 +225,16 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 if [[ "$NAME_MODE" == "creative" && "$NAME_TYPE" == "full" ]]; then
-    echo -e "${RED}For creative full names, please use the interactive mode (run without arguments).${NC}"
-    exit 1
+    echo -e "${RED}For creative full names, please use the interactive mode (run without arguments).${NC}"; exit 1;
 fi
 
 for ((i=0; i<BATCH_COUNT; i++)); do
     case $NAME_TYPE in
         "first")
-            if [ "$GENDER" == "auto" ]; then
-                gender=$([ $((RANDOM % 2)) -eq 0 ] && echo "female" || echo "male")
-            else
-                gender=$GENDER
-            fi
+            if [ "$GENDER" == "auto" ]; then gender=$([ $((RANDOM % 2)) -eq 0 ] && echo "female" || echo "male"); else gender=$GENDER; fi
             get_name "first" "$gender"
             ;;
-        "last")
-            get_name "last" "any"
-            ;;
+        "last") get_name "last" "any" ;;
         "full")
             first_gender=$([ $((RANDOM % 2)) -eq 0 ] && echo "female" || echo "male")
             first_name=$(get_name "first" "$first_gender")

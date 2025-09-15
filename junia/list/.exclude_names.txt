@@ -1,110 +1,110 @@
-## All names: the first name is the one that HAS to be blocked, and then each name has alternate spellings
+    ## All names: the first name is the one that HAS to be blocked, and then each name has alternate spellings
 
-## For "amy" (an ex-girlfriend where, if I saw her name, would send me into an autistic meltdown, along with alternate spellings)
-amy
-amie
-aimee
+    ## For "amy" (an ex-girlfriend where, if I saw her name, would send me into an autistic meltdown, along with alternate spellings)
+    amy
+    amie
+    aimee
 
-## For "Rachel" (an ex-girlfriend where, if I saw her name, would send me into an autistic meltdown, along with alternate spellings)
-rachel
-rachael
-rachelle
+    ## For "Rachel" (an ex-girlfriend where, if I saw her name, would send me into an autistic meltdown, along with alternate spellings)
+    rachel
+    rachael
+    rachelle
 
-## For "michael" (don't want my name)
-michael
-michaela
-michelle
-michele
+    ## For "michael" (don't want my name)
+    michael
+    michaela
+    michelle
+    michele
 
-## For "Annie" (an ex-girlfreind who wasn't nice to me)
-annie
-anny
-ann
+    ## For "Annie" (an ex-girlfreind who wasn't nice to me)
+    annie
+    anny
+    ann
 
-## For "Kristine" (THE ex who physically, emotionally, and sexually abused me - I am in a much better place now)
-kristine
-kristen
-kristin
-kristina
-krystina
-christine
-christina
-kristy
-kirsty
+    ## For "Kristine" (THE ex who physically, emotionally, and sexually abused me - I am in a much better place now)
+    kristine
+    kristen
+    kristin
+    kristina
+    krystina
+    christine
+    christina
+    kristy
+    kirsty
 
-## For "Bonnie" (the first time someone made me happy, it did not work out)
-bonnie
-bonny
-boni
+    ## For "Bonnie" (the first time someone made me happy, it did not work out)
+    bonnie
+    bonny
+    boni
 
 
-## For actual family members (just would feel weird on a web server)
+    ## For actual family members (just would feel weird on a web server)
 
-## Variants of spelling for family member names
-## Maria
-maria
-mariah
+    ## Variants of spelling for family member names
+    ## Maria
+    maria
+    mariah
 
-## Janette / Janet
-janette
-janet
-janett
-jeanette
-jeanett
+    ## Janette / Janet
+    janette
+    janet
+    janett
+    jeanette
+    jeanett
 
-## Loretta
-loretta
-loreta
-lorretta
+    ## Loretta
+    loretta
+    loreta
+    lorretta
 
-## Michelle
-michelle
-michele
-michaela
-shell
-shelly
+    ## Michelle
+    michelle
+    michele
+    michaela
+    shell
+    shelly
 
-## Katherine
-katherine
-catherine
-kathryn
-kathrin
-kathy
-cathy
-# katie #Katie is allowed, she is a character from a book
-katy
-kate
+    ## Katherine
+    katherine
+    catherine
+    kathryn
+    kathrin
+    kathy
+    cathy
+    # katie #Katie is allowed, she is a character from a book
+    katy
+    kate
 
-## Abbie
-abbie
-abby
-abigail
+    ## Abbie
+    abbie
+    abby
+    abigail
 
-## Hailey
-hailey
-hayley
-hailee
-haylee
-haley
+    ## Hailey
+    hailey
+    hayley
+    hailee
+    haylee
+    haley
 
-## Joey
-joey
-joie
-joee
+    ## Joey
+    joey
+    joie
+    joee
 
-## Phil (my father walked out on me when I was a teenager, I'm now 40 years old)
-phil
-phillip
-philip
-filip
+    ## Phil (my father walked out on me when I was a teenager, I'm now 40 years old)
+    phil
+    phillip
+    philip
+    filip
 
-## Joan (mother)
-joan
-joann
-joanne
+    ## Joan (mother)
+    joan
+    joann
+    joanne
 
-## Jamie (her new husband)
-jamie
-jaime
-jayme
-jami
+    ## Jamie (her new husband)
+    jamie
+    jaime
+    jayme
+    jami
