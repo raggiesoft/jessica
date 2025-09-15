@@ -57,7 +57,6 @@ usage() {
     exit 1
 }
 
-# NEW: Smart pluralization for family names
 pluralize() {
     local name="$1"
     case "$name" in
@@ -130,11 +129,9 @@ get_name() {
             echo "$(date '+%F %T') | $name_source ($gender): $output_name" >> "$LOG_FILE"
             break
         fi
-        # NOTE: The "Skipping..." message has been intentionally removed for a cleaner experience.
     done
 }
 
-# === Interactive Mode for Character Generation ===
 interactive_mode() {
     echo -e "${GREEN}--- Interactive Character Generation ---${NC}"
     local MEN_COUNT
@@ -168,7 +165,7 @@ interactive_mode() {
 
     if $SAME_LAST; then
         last_name=$(get_name "last" "any")
-        plural_last_name=$(pluralize "$last_name") # Use the new function
+        plural_last_name=$(pluralize "$last_name")
         echo -e "\n${YELLOW}--- Family: The ${plural_last_name} ---${NC}\n"
     else
         echo -e "\n${YELLOW}--- Generated Characters ---${NC}\n"
@@ -204,17 +201,26 @@ if [[ "$1" == "--sanitize" || "$1" == "--restore" || "$1" == "--delete-backups" 
     fi
 fi
 
+# NEW LOGIC: Handle --sanitize-before and then decide what to do next
+SANITIZE_BEFORE=false
+if [[ "$1" == "--sanitize-before" ]]; then
+    SANITIZE_BEFORE=true
+    shift # Consume the --sanitize-before argument
+    if [[ -x "$LAVINIA" ]]; then
+        echo "🧹 Running Lavinia before generating names..."
+        "$LAVINIA" --sanitize # Explicitly call sanitize
+    else
+        echo -e "${RED}⚠️ Lavinia not found or not executable at: $LAVINIA${NC}"
+    fi
+fi
+
+# If no arguments remain, run interactive mode.
 if [ "$#" -eq 0 ]; then
     interactive_mode
     exit 0
 fi
 
-SANITIZE_BEFORE=false
-if [[ "$1" == "--sanitize-before" ]]; then
-    SANITIZE_BEFORE=true
-    shift
-fi
-
+# If arguments remain, parse them for standard execution.
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -n|--nat) NATIONALITY="$2"; shift;;
@@ -230,15 +236,6 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
-
-if $SANITIZE_BEFORE; then
-    if [[ -x "$LAVINIA" ]]; then
-        echo "🧹 Running Lavinia before generating names..."
-        "$LAVINIA"
-    else
-        echo -e "${RED}⚠️ Lavinia not found or not executable at: $LAVINIA${NC}"
-    fi
-fi
 
 if [[ "$NAME_MODE" == "creative" && "$NAME_TYPE" == "full" ]]; then
     echo -e "${RED}For creative full names, please use the interactive mode (run without arguments).${NC}"
