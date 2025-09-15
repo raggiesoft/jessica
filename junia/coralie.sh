@@ -29,7 +29,7 @@ NAME_TYPE="first"         # first, last, full
 NAME_CASE="proper"        # proper, lower
 NAME_MODE="infra"         # infra = web safe, creative = keep accents
 GENDER="auto"             # auto, male, female
-ERA=""                    # NEW: classic, 80s, modern, etc.
+ERA=""                    # classic, boomer, genx, millennial, 90s, 2000s, 2010s, 2020s
 USE_API=false
 BATCH_COUNT=1
 SAFE_OUTPUT=false
@@ -40,17 +40,22 @@ usage() {
     echo "Running with no options will start interactive character creation mode."
     echo ""
     echo "Name generation options:"
-    echo "  -n, --nat    [code]  : Nationality code (us, ca, etc). Default: us"
+    echo "  -n, --nat    [code]  : Nationality code (us, ca, future). Default: us"
     echo "  -t, --type   [type]  : first, last, or full. Default: first"
     echo "  -c, --case   [case]  : proper, lower. Default: proper"
     echo "  -m, --mode   [mode]  : infra, creative. Default: infra"
     echo "  -g, --gender [g]     : male, female, auto (first names only). Default: auto"
-    echo "  -e, --era    [era]   : Name generation era (e.g., 80s, classic, modern)."
+    echo "  -e, --era    [era]   : Name generation era (e.g., classic, boomer, genx, etc.)."
     echo "  -a, --use-api        : Force API instead of local files"
     echo "  -b, --batch  [num]   : Generate multiple names"
     echo "  -s, --safe           : Output filesystem-safe slug"
     echo "  -h, --help           : Show this help"
-    # ... (Lavinia control modes)
+    echo ""
+    echo "Lavinia control modes:"
+    echo "     --sanitize        : Live sanitize (with backups)"
+    echo "     --restore         : Restore most recent backup"
+    echo "     --delete-backups  : Delete all Lavinia backups"
+    echo "     --sanitize-before : Run Lavinia live sanitize before name generation"
     exit 1
 }
 
@@ -87,22 +92,33 @@ get_name() {
 
     while true; do
         local nat_dir="$NAME_LIST_DIR/$NATIONALITY"
-        local generic_name_file="$nat_dir/${gender}_first.txt"
-        local era_name_file="$nat_dir/${gender}_first_${ERA}.txt"
+        # Check for temporary mixed-era files first
+        local temp_male_file="/tmp/coralie_male_mix.tmp"
+        local temp_female_file="/tmp/coralie_female_mix.tmp"
+        
         local name_file # Declare variable
+        
+        if [[ "$name_source" == "first" && "$gender" == "male" && -f "$temp_male_file" ]]; then
+            name_file="$temp_male_file"
+        elif [[ "$name_source" == "first" && "$gender" == "female" && -f "$temp_female_file" ]]; then
+            name_file="$temp_female_file"
+        else
+            # Standard logic if not using mixed-era temp files
+            local generic_name_file="$nat_dir/${gender}_first.txt"
+            local era_name_file="$nat_dir/${gender}_first_${ERA}.txt"
 
-        if [ "$name_source" == "first" ] && [ -n "$ERA" ] && [ -f "$era_name_file" ]; then
-            name_file="$era_name_file"
-        elif [ "$name_source" == "first" ]; then
-            name_file="$generic_name_file"
-        else # Last names
-            name_file="$nat_dir/last.txt"
+            if [ "$name_source" == "first" ] && [ -n "$ERA" ] && [ -f "$era_name_file" ]; then
+                name_file="$era_name_file"
+            elif [ "$name_source" == "first" ]; then
+                name_file="$generic_name_file"
+            else # Last names
+                name_file="$nat_dir/last.txt"
+            fi
         fi
 
         if [ "$USE_API" = false ] && [ -f "$name_file" ]; then
             proper_name=$(get_name_from_file "$name_file")
         else
-            # Fallback to API if file doesn't exist or API is forced
             [ "$USE_API" = true ] && echo "Forcing API lookup..." >&2
             local api_result
             api_result=$(get_name_from_api "$NATIONALITY")
@@ -131,7 +147,12 @@ get_name() {
     done
 }
 
+# Interactive Mode for Character Generation
 interactive_mode() {
+    # Clean up any old temp files on start and ensure cleanup on exit
+    rm -f /tmp/coralie_*.tmp
+    trap 'rm -f /tmp/coralie_*.tmp' EXIT
+
     echo -e "${GREEN}--- Interactive Character Generation ---${NC}"
     local MEN_COUNT WOMEN_COUNT same_last_choice
     local SAME_LAST=true
@@ -146,18 +167,63 @@ interactive_mode() {
         [[ "$WOMEN_COUNT" =~ ^[1-9][0-9]*$ ]] && break || echo -e "${RED}Please enter a number that is 1 or greater.${NC}"
     done
     
-    echo "Select a name era:"
-    echo "  1) Classic (e.g., Walter, Dorothy)"
-    echo "  2) 80s (e.g., David, Jessica)"
-    echo "  3) Modern (e.g., Noah, Olivia)"
-    echo "  4) Mixed (any era)"
-    read -rp "Choice [1-4]: " era_choice
-    case "$era_choice" in
-        1) ERA="classic" ;;
-        2) ERA="80s" ;;
-        3) ERA="modern" ;;
-        *) ERA="" ;; # Default to mixed
-    esac
+    echo
+    echo "Select a name generation mode:"
+    echo "  1) Single Category (e.g., 'Future' or a specific 'Historical Era')"
+    echo "  2) Mix Multiple Historical Eras"
+    read -rp "Choice [1-2]: " mode_choice
+
+    declare -A eras
+    eras[1]="classic"
+    eras[2]="boomer"
+    eras[3]="genx"
+    eras[4]="millennial"
+    eras[5]="90s"
+    eras[6]="2000s"
+    eras[7]="2010s"
+    eras[8]="2020s"
+
+    if [[ "$mode_choice" == "2" ]]; then
+        # Mix and Match Mode
+        NATIONALITY="us"
+        ERA="" # Ensure ERA is empty for this mode
+        echo
+        echo "Select the historical eras to mix (e.g., '4 5' for Millennial & 90s):"
+        echo "  1) Classic      2) Boomer       3) GenX"
+        echo "  4) Millennial   5) 90s Baby     6) 2000s Baby"
+        echo "  7) 2010s Baby   8) 2020s Baby"
+        read -rp "Enter numbers: " -a selected_indices
+
+        for index in "${selected_indices[@]}"; do
+            if [[ -v "eras[$index]" ]]; then
+                era_name=${eras[$index]}
+                echo "Adding names from era: $era_name"
+                cat "$NAME_LIST_DIR/us/male_first_${era_name}.txt" >> "/tmp/coralie_male_mix.tmp" 2>/dev/null
+                cat "$NAME_LIST_DIR/us/female_first_${era_name}.txt" >> "/tmp/coralie_female_mix.tmp" 2>/dev/null
+            fi
+        done
+
+    else
+        # Single Category Mode
+        echo
+        echo "Select a name category:"
+        echo "  1) Historical (Classic, Boomer, etc.)"
+        echo "  2) Far Future (Sci-Fi)"
+        read -rp "Choice [1-2]: " category_choice
+        if [[ "$category_choice" == "1" ]]; then
+            NATIONALITY="us"
+            echo
+            echo "Select a single name era:"
+            echo "  1) Classic      2) Boomer       3) GenX"
+            echo "  4) Millennial   5) 90s Baby     6) 2000s Baby"
+            echo "  7) 2010s Baby   8) 2020s Baby   9) Mixed (All Eras)"
+            read -rp "Choice [1-9]: " era_choice
+            [[ -v "eras[$era_choice]" ]] && ERA=${eras[$era_choice]} || ERA=""
+        else
+            NATIONALITY="future"
+            ERA=""
+        fi
+    fi
 
     read -rp "Should they all share the same last name? [Y/n]: " same_last_choice
     same_last_choice=${same_last_choice:-Y}
@@ -214,7 +280,7 @@ while [[ "$#" -gt 0 ]]; do
         -c|--case) NAME_CASE="$2"; shift;;
         -m|--mode) NAME_MODE="$2"; shift;;
         -g|--gender) GENDER="$2"; shift;;
-        -e|--era) ERA="$2"; shift;; # New flag
+        -e|--era) ERA="$2"; shift;;
         -a|--use-api) USE_API=true;;
         -b|--batch) BATCH_COUNT="$2"; shift;;
         -s|--safe) SAFE_OUTPUT=true;;
