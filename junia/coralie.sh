@@ -9,8 +9,8 @@
 # === Identity Variables ===
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-NAME_LIST_DIR="$SCRIPT_DIR/name-list"
-EXCLUDE_FILE="$NAME_LIST_DIR/.exclude_names.txt"
+NAME_LIST_DIR="$SCRIPT_DIR/list" # Corrected path
+EXCLUDE_FILE="$SCRIPT_DIR/list/.exclude_names.txt" # Corrected path
 LOG_FILE="$SCRIPT_DIR/logs/namegen.log"
 LAVINIA="$SCRIPT_DIR/list/lavinia.sh"
 
@@ -127,7 +127,7 @@ if [[ "$1" == "--sanitize" || "$1" == "--restore" || "$1" == "--delete-backups" 
         "$LAVINIA" "$1"
         exit $?
     else
-        echo "⚠️ Lavinia not found or not executable at: $LAVINIA"
+        echo -e "${RED}⚠️ Lavinia not found or not executable at: $LAVINIA${NC}"
         exit 1
     fi
 fi
@@ -161,7 +161,7 @@ if $SANITIZE_BEFORE; then
         echo "🧹 Running Lavinia before generating names..."
         "$LAVINIA"
     else
-        echo "⚠️ Lavinia not found or not executable at: $LAVINIA"
+        echo -e "${RED}⚠️ Lavinia not found or not executable at: $LAVINIA${NC}"
     fi
 fi
 
@@ -194,3 +194,18 @@ for ((i=0; i<BATCH_COUNT; i++)); do
             if [ "$GENDER" == "auto" ]; then
                 gender=$([ $((RANDOM % 2)) -eq 0 ] && echo "female" || echo "male")
             else
+                gender=$GENDER
+            fi
+            get_name "first" "$gender"
+            ;;
+        "last")
+            get_name "last" "any"
+            ;;
+        "full")
+            first_gender=$([ $((RANDOM % 2)) -eq 0 ] && echo "female" || echo "male")
+            first_name=$(get_name "first" "$first_gender")
+            last_name=$(get_name "last" "any")
+            echo "$first_name $last_name"
+            ;;
+    esac
+done
