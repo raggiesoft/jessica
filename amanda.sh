@@ -34,6 +34,7 @@ pause() { read -rp "Press [Enter] key to continue..."; }
 # === Utility: Menu Header ===
 menu_header() {
     clear
+    python3 "$SOLENE_DIR/solene.py"
     echo -e "${YELLOW}=========================================${NC}"
     echo -e "   $MAIN_MENU_NAME — Site Generator Menu"
     echo -e "${YELLOW}=========================================${NC}"
@@ -159,10 +160,8 @@ if [ ! -f "$FIRST_RUN_MARKER" ]; then
     first_run_experience
 fi
 
-# 2. Let Solène give her greeting
-python3 "$SOLENE_DIR/solene.py"
 
-# 3. Start the main menu loop
+# 2. Start the main menu loop
 while true; do
     menu_header
     echo "1. Create new site"
