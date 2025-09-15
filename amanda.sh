@@ -34,11 +34,11 @@ pause() { read -rp "Press [Enter] key to continue..."; }
 # === Utility: Menu Header ===
 menu_header() {
     clear
-    python3 "$SOLENE_DIR/solene.py"
     echo -e "${YELLOW}=========================================${NC}"
     echo -e "   $MAIN_MENU_NAME — Site Generator Menu"
     echo -e "${YELLOW}=========================================${NC}"
     echo
+    python3 "$SOLENE_DIR/solene.py"
 }
 
 # === First-Run "Out of Box Experience" ===
