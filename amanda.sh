@@ -27,6 +27,9 @@ else
     exit 1
 fi
 
+# === First-Run Experience Marker ===
+FIRST_RUN_MARKER="$TOOL_HOME/.first_run_complete"
+
 # === Utility: Pause for user input ===
 # Used after actions so the menu doesn't immediately refresh and hide output.
 pause() { read -rp "Press [Enter] key to continue..."; }
@@ -39,6 +42,24 @@ menu_header() {
     echo -e "   $MAIN_MENU_NAME — Site Generator Menu"
     echo -e "${YELLOW}=========================================${NC}"
     echo
+}
+
+# === First-Run "Out of Box Experience" ===
+# Welcomes the user and introduces the system on the very first run.
+first_run_experience() {
+    clear
+    echo -e "${GREEN}Welcome to the Jessica Suite.${NC}"
+    echo "It looks like this is your first time running the system."
+    echo "Let's get you acquainted with the crew."
+    echo
+    pause
+    # Kristyn is the best person to introduce the family
+    bash "$CLARA_DIR/kristyn.sh"
+    # Create the marker file so this doesn't run again
+    touch "$FIRST_RUN_MARKER"
+    echo
+    echo "Setup complete. You will now be taken to the main menu."
+    pause
 }
 
 # === Option 1: Create a New Site ===
@@ -137,8 +158,17 @@ generate_name() {
     pause
 }
 
-# === Main Menu Loop ===
-# Displays the menu, reads user choice, and calls the appropriate function.
+# === Script Entry Point ===
+
+# 1. Run the first-run experience if the marker file doesn't exist
+if [ ! -f "$FIRST_RUN_MARKER" ]; then
+    first_run_experience
+fi
+
+# 2. Let Solène give her greeting
+python3 "$SOLENE_DIR/solene.py"
+
+# 3. Start the main menu loop
 while true; do
     menu_header
     echo "1. Create new site"
