@@ -1,0 +1,53 @@
+." The title line: Command name, Section number, Date, Source, Manual Title
+.TH coralie 1 "2025-09-15" "Jessica Suite" "User Commands"
+
+." Section Header: NAME
+.SH NAME
+coralie \- Random Name Generator for the Jessica Suite
+
+." Section Header: SYNOPSIS (Usage)
+.SH SYNOPSIS
+.B ./coralie.sh
+[\fIOPTIONS\fR]
+.br
+.B ./coralie.sh
+[\fI--sanitize | --restore | --delete-backups\fR]
+
+." Section Header: DESCRIPTION
+.SH DESCRIPTION
+.B Coralie
+is a powerful and flexible name generator designed for both creative narrative use and secure infrastructure naming. When run with no options, it enters an interactive mode for building character families. When run with flags, it provides single or batch names based on specified criteria. It is fully integrated with the Lavinia exclusion list to ensure emotionally safe outputs.
+
+." Section Header: OPTIONS
+.SH OPTIONS
+.TP
+.B \-n, --nat \fICODE\fR
+Specifies the nationality/category for the name lists (e.g., us, future). Default is 'us'.
+.TP
+.B \-e, --era \fIERA\fR
+For historical names, specifies the generation (e.g., classic, 80s, genx).
+.TP
+.B \-t, --type \fITYPE\fR
+Sets the type of name to generate: first, last, or full. Default is 'first'.
+.TP
+.B \-c, --case \fICASE\fR
+Sets the output case: proper or lower. Default is 'proper'.
+.TP
+.B \-g, --gender \fIGENDER\fR
+Specifies gender for first names: male, female, or auto. Default is 'auto'.
+.TP
+.B \-b, --batch \fINUM\fR
+Generate a batch of \fINUM\fR names instead of a single name.
+.TP
+.B --sanitize-before
+Runs the Lavinia name sanitizer on the source lists before generating names.
+
+." Section Header: INTERACTIVE MODE
+.SH INTERACTIVE MODE
+When run with no arguments,
+.B Coralie
+launches an interactive prompt to build a family of characters. It will ask for the number of men and women, the desired name category (Historical or Future), and whether they should share a last name. The "Mix Multiple Eras" option allows for creating a custom pool of names from specific historical periods.
+
+." Section Header: AUTHOR
+.SH AUTHOR
+Written by Michael Ragsdale.
