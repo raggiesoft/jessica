@@ -189,21 +189,35 @@ if __name__ == "__main__":
     # --- Load Config (which may override colors if supported) ---
     try:
         with open(f"{os.path.expanduser('~')}/jessica/elise/dorian") as f:
-            config_content = f.read()
-            for line in config_content.splitlines():
-                if line.startswith("SOLENE_COORDS_GOOGLE="):
-                    parsed = parse_dms_coords(line.split('=', 1)[1].strip('"'))
+            for line in f:
+                # First, strip away any comments and leading/trailing whitespace
+                clean_line = line.split('#', 1)[0].strip()
+                if not clean_line or '=' not in clean_line:
+                    continue
+
+                # Now, safely split the key and value
+                key, value = clean_line.split('=', 1)
+                key = key.strip()
+                value = value.strip().strip("'\"") # Strip whitespace then any quotes
+
+                # Assign values to the correct variables
+                if key == "SOLENE_COORDS_GOOGLE":
+                    parsed = parse_dms_coords(value)
                     if parsed: LAT, LON = parsed
-                elif line.startswith("SOLENE_TIMEZONE="):
-                    TIMEZONE = line.split('=', 1)[1].strip('"')
-                elif line.startswith("AMBER_SCHEME="): AMBER_SCHEME = line.split('=', 1)[1].strip('"')
-                elif line.startswith("SALACIA_SCHEME="): SALACIA_SCHEME = line.split('=', 1)[1].strip('"')
-                elif line.startswith("AMBER_PROFILE="): AMBER_PROFILE = line.split('=', 1)[1].strip('"')
-                elif line.startswith("SALACIA_PROFILE="): SALACIA_PROFILE = line.split('=', 1)[1].strip('"')
-                elif line.startswith("YELLOW=") and (force_color or supports_color()):
-                    YELLOW = line.split('=', 1)[1].strip("'").replace('\\033', '\033')
-                elif line.startswith("NC=") and (force_color or supports_color()):
-                    NC = line.split('=', 1)[1].strip("'").replace('\\033', '\033')
+                elif key == "SOLENE_TIMEZONE":
+                    TIMEZONE = value
+                elif key == "AMBER_SCHEME":
+                    AMBER_SCHEME = value
+                elif key == "SALACIA_SCHEME":
+                    SALACIA_SCHEME = value
+                elif key == "AMBER_PROFILE":
+                    AMBER_PROFILE = value
+                elif key == "SALACIA_PROFILE":
+                    SALACIA_PROFILE = value
+                elif key == "YELLOW" and (force_color or supports_color()):
+                    YELLOW = value.replace('\\033', '\033')
+                elif key == "NC" and (force_color or supports_color()):
+                    NC = value.replace('\\033', '\033')
     except (FileNotFoundError, IndexError):
         pass
 
