@@ -57,6 +57,19 @@ usage() {
     exit 1
 }
 
+# NEW: Smart pluralization for family names
+pluralize() {
+    local name="$1"
+    case "$name" in
+        *s|*x|*z|*ch|*sh)
+            echo "${name}es"
+            ;;
+        *)
+            echo "${name}s"
+            ;;
+    esac
+}
+
 slugify() {
     echo "$1" | iconv -f UTF-8 -t ascii//TRANSLIT | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]'
 }
@@ -116,13 +129,12 @@ get_name() {
             echo "$output_name"
             echo "$(date '+%F %T') | $name_source ($gender): $output_name" >> "$LOG_FILE"
             break
-        else
-            echo "Skipping an excluded name..." >&2
         fi
+        # NOTE: The "Skipping..." message has been intentionally removed for a cleaner experience.
     done
 }
 
-# === NEW: Interactive Mode for Character Generation ===
+# === Interactive Mode for Character Generation ===
 interactive_mode() {
     echo -e "${GREEN}--- Interactive Character Generation ---${NC}"
     local MEN_COUNT
@@ -130,7 +142,6 @@ interactive_mode() {
     local same_last_choice
     local SAME_LAST=true
 
-    # Get number of men with validation
     while true; do
         read -rp "How many men? " MEN_COUNT
         if [[ "$MEN_COUNT" =~ ^[1-9][0-9]*$ ]]; then
@@ -140,7 +151,6 @@ interactive_mode() {
         fi
     done
 
-    # Get number of women with validation
     while true; do
         read -rp "How many women? " WOMEN_COUNT
         if [[ "$WOMEN_COUNT" =~ ^[1-9][0-9]*$ ]]; then
@@ -150,18 +160,16 @@ interactive_mode() {
         fi
     done
 
-    # Ask if they should share a last name
     read -rp "Should they all share the same last name? [Y/n]: " same_last_choice
-    # Default to "Y" if input is empty
     same_last_choice=${same_last_choice:-Y}
     [[ "$same_last_choice" =~ ^[Nn]$ ]] && SAME_LAST=false
 
-    # This mode is always "creative"
     NAME_MODE="creative"
 
     if $SAME_LAST; then
         last_name=$(get_name "last" "any")
-        echo -e "\n${YELLOW}--- Family: The ${last_name}s ---${NC}\n"
+        plural_last_name=$(pluralize "$last_name") # Use the new function
+        echo -e "\n${YELLOW}--- Family: The ${plural_last_name} ---${NC}\n"
     else
         echo -e "\n${YELLOW}--- Generated Characters ---${NC}\n"
     fi
@@ -186,8 +194,6 @@ EXCLUDE_NAMES=()
 [ -f "$EXCLUDE_FILE" ] && mapfile -t EXCLUDE_NAMES < <(grep -v '^ *#' < "$EXCLUDE_FILE" | tr '[:upper:]' '[:lower:]' | xargs)
 
 # === Script Entry Point ===
-
-# 1. Check for Lavinia pass-through commands first
 if [[ "$1" == "--sanitize" || "$1" == "--restore" || "$1" == "--delete-backups" ]]; then
     if [[ -x "$LAVINIA" ]]; then
         "$LAVINIA" "$1"
@@ -198,13 +204,11 @@ if [[ "$1" == "--sanitize" || "$1" == "--restore" || "$1" == "--delete-backups" 
     fi
 fi
 
-# 2. If no arguments are given, run interactive mode and exit
 if [ "$#" -eq 0 ]; then
     interactive_mode
     exit 0
 fi
 
-# 3. If arguments ARE given, parse them and run standard execution
 SANITIZE_BEFORE=false
 if [[ "$1" == "--sanitize-before" ]]; then
     SANITIZE_BEFORE=true
