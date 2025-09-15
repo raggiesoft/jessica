@@ -50,12 +50,6 @@ usage() {
     echo "  -b, --batch  [num]   : Generate multiple names"
     echo "  -s, --safe           : Output filesystem-safe slug"
     echo "  -h, --help           : Show this help"
-    echo ""
-    echo "Lavinia control modes:"
-    echo "     --sanitize        : Live sanitize (with backups)"
-    echo "     --restore         : Restore most recent backup"
-    echo "     --delete-backups  : Delete all Lavinia backups"
-    echo "     --sanitize-before : Run Lavinia live sanitize before name generation"
     exit 1
 }
 
@@ -77,18 +71,19 @@ normalize_name() {
 
 get_name_from_file() {
     local file_path=$1
-    [ -f "$file_path" ] && shuf -n 1 "$file_path" | xargs
+    [ -f "$file_path" ] && shuf -n 1 "$file_path"
 }
 
 get_name_from_api() {
     local nat_code=$1
-    curl -s "https://randomuser.me/api/?nat=${nat_code}&inc=name" | jq -r '.results[0].name'
+    # This function is a fallback and does not support era tagging
+    curl -s "https://randomuser.me/api/?nat=${nat_code}&inc=name" | jq -r '.results[0].name' | awk '{print $1"|API"}'
 }
 
 get_name() {
     local name_source="$1"
     local gender="$2"
-    local proper_name normalized_name check_name output_name
+    local raw_line proper_name era_tag normalized_name check_name output_name
 
     while true; do
         local nat_dir="$NAME_LIST_DIR/$NATIONALITY"
@@ -117,17 +112,23 @@ get_name() {
         fi
 
         if [ "$USE_API" = false ] && [ -f "$name_file" ]; then
-            proper_name=$(get_name_from_file "$name_file")
+            raw_line=$(get_name_from_file "$name_file")
         else
             [ "$USE_API" = true ] && echo "Forcing API lookup..." >&2
             local api_result
             api_result=$(get_name_from_api "$NATIONALITY")
             if [ "$name_source" == "last" ]; then
                 proper_name=$(echo "$api_result" | jq -r '.last')
+                raw_line="${proper_name}|API"
             else
                 proper_name=$(echo "$api_result" | jq -r '.first')
+                raw_line="${proper_name}|API"
             fi
         fi
+
+        # Parse the line for name and era tag
+        proper_name=$(echo "$raw_line" | cut -d'|' -f1 | xargs)
+        era_tag=$(echo "$raw_line" | cut -d'|' -f2)
 
         normalized_name=$(normalize_name "$proper_name")
         check_name=$(echo "$normalized_name" | tr '[:upper:]' '[:lower:]')
@@ -140,8 +141,8 @@ get_name() {
                 output_name="$(tr '[:lower:]' '[:upper:]' <<< ${proper_name:0:1})${proper_name:1}"
             fi
             [ "$SAFE_OUTPUT" = true ] && output_name=$(slugify "$output_name")
-            echo "$output_name"
-            echo "$(date '+%F %T') | $name_source ($gender): $output_name" >> "$LOG_FILE"
+            echo "${output_name}|${era_tag}" # Return name and era tag
+            echo "$(date '+%F %T') | $name_source ($gender): $output_name ($era_tag)" >> "$LOG_FILE"
             break
         fi
     done
@@ -156,15 +157,17 @@ interactive_mode() {
     echo -e "${GREEN}--- Interactive Character Generation ---${NC}"
     local MEN_COUNT WOMEN_COUNT same_last_choice
     local SAME_LAST=true
+    local IS_MIXED_MODE=false
+    local HEADER_ERA_NAME=""
 
     while true; do
         read -rp "How many men? " MEN_COUNT
-        [[ "$MEN_COUNT" =~ ^[1-9][0-9]*$ ]] && break || echo -e "${RED}Please enter a number that is 1 or greater.${NC}"
+        [[ "$MEN_COUNT" =~ ^[0-9]+$ ]] && break || echo -e "${RED}Please enter a number.${NC}"
     done
 
     while true; do
         read -rp "How many women? " WOMEN_COUNT
-        [[ "$WOMEN_COUNT" =~ ^[1-9][0-9]*$ ]] && break || echo -e "${RED}Please enter a number that is 1 or greater.${NC}"
+        [[ "$WOMEN_COUNT" =~ ^[0-9]+$ ]] && break || echo -e "${RED}Please enter a number.${NC}"
     done
     
     echo
@@ -174,19 +177,30 @@ interactive_mode() {
     read -rp "Choice [1-2]: " mode_choice
 
     declare -A eras
-    eras[1]="classic"
-    eras[2]="boomer"
-    eras[3]="genx"
-    eras[4]="millennial"
-    eras[5]="90s"
-    eras[6]="2000s"
-    eras[7]="2010s"
-    eras[8]="2020s"
+    eras[1]="Classic"
+    eras[2]="Boomer"
+    eras[3]="GenX"
+    eras[4]="Millennial"
+    eras[5]="90s Baby"
+    eras[6]="2000s Baby"
+    eras[7]="2010s Baby"
+    eras[8]="2020s Baby"
+    
+    declare -A era_files
+    era_files[1]="classic"
+    era_files[2]="boomer"
+    era_files[3]="genx"
+    era_files[4]="millennial"
+    era_files[5]="90s"
+    era_files[6]="2000s"
+    era_files[7]="2010s"
+    era_files[8]="2020s"
 
     if [[ "$mode_choice" == "2" ]]; then
         # Mix and Match Mode
+        IS_MIXED_MODE=true
         NATIONALITY="us"
-        ERA="" # Ensure ERA is empty for this mode
+        ERA=""
         echo
         echo "Select the historical eras to mix (e.g., '4 5' for Millennial & 90s):"
         echo "  1) Classic      2) Boomer       3) GenX"
@@ -195,11 +209,13 @@ interactive_mode() {
         read -rp "Enter numbers: " -a selected_indices
 
         for index in "${selected_indices[@]}"; do
-            if [[ -v "eras[$index]" ]]; then
-                era_name=${eras[$index]}
-                echo "Adding names from era: $era_name"
-                cat "$NAME_LIST_DIR/us/male_first_${era_name}.txt" >> "/tmp/coralie_male_mix.tmp" 2>/dev/null
-                cat "$NAME_LIST_DIR/us/female_first_${era_name}.txt" >> "/tmp/coralie_female_mix.tmp" 2>/dev/null
+            if [[ -v "era_files[$index]" ]]; then
+                era_file_name=${era_files[$index]}
+                era_display_name=${eras[$index]}
+                echo "Adding names from era: $era_display_name"
+                # Append era tag to each line for later parsing
+                sed "s/$/|${era_display_name}/" "$NAME_LIST_DIR/us/male_first_${era_file_name}.txt" >> "/tmp/coralie_male_mix.tmp" 2>/dev/null
+                sed "s/$/|${era_display_name}/" "$NAME_LIST_DIR/us/female_first_${era_file_name}.txt" >> "/tmp/coralie_female_mix.tmp" 2>/dev/null
             fi
         done
 
@@ -218,10 +234,16 @@ interactive_mode() {
             echo "  4) Millennial   5) 90s Baby     6) 2000s Baby"
             echo "  7) 2010s Baby   8) 2020s Baby   9) Mixed (All Eras)"
             read -rp "Choice [1-9]: " era_choice
-            [[ -v "eras[$era_choice]" ]] && ERA=${eras[$era_choice]} || ERA=""
+            if [[ -v "era_files[$era_choice]" ]]; then
+                ERA=${era_files[$era_choice]}
+                HEADER_ERA_NAME=${eras[$era_choice]}
+            else
+                ERA=""
+            fi
         else
             NATIONALITY="future"
             ERA=""
+            HEADER_ERA_NAME="Far Future"
         fi
     fi
 
@@ -230,27 +252,76 @@ interactive_mode() {
     [[ "$same_last_choice" =~ ^[Nn]$ ]] && SAME_LAST=false
 
     NAME_MODE="creative"
+    
+    echo # Newline for cleaner output
 
+    # Set the main header
     if $SAME_LAST; then
-        last_name=$(get_name "last" "any")
+        last_name_line=$(get_name "last" "any")
+        last_name=$(echo "$last_name_line" | cut -d'|' -f1)
         plural_last_name=$(pluralize "$last_name")
-        echo -e "\n${YELLOW}--- Family: The ${plural_last_name} ---${NC}\n"
+        echo -e "${YELLOW}--- Family: The ${plural_last_name} ---${NC}"
+        if [[ -n "$HEADER_ERA_NAME" ]]; then
+            echo -e "${YELLOW}(Names from the ${HEADER_ERA_NAME} Era)${NC}\n"
+        else
+            echo # Add a blank line if no era header
+        fi
+    elif [[ -n "$HEADER_ERA_NAME" ]]; then
+        echo -e "${YELLOW}--- Names from the ${HEADER_ERA_NAME} Era ---${NC}\n"
     else
-        echo -e "\n${YELLOW}--- Generated Characters ---${NC}\n"
+        echo -e "${YELLOW}--- Generated Characters ---${NC}\n"
     fi
 
-    echo "Men:"
-    for ((i=0; i<MEN_COUNT; i++)); do
-        first=$(get_name "first" "male")
-        [ "$SAME_LAST" = true ] && echo "  $first $last_name" || echo "  $first $(get_name "last" "any")"
-    done
+    if [ "$MEN_COUNT" -gt 0 ]; then
+        echo "Men:"
+        for ((i=0; i<MEN_COUNT; i++)); do
+            name_line=$(get_name "first" "male")
+            first_name=$(echo "$name_line" | cut -d'|' -f1)
+            era_tag=$(echo "$name_line" | cut -d'|' -f2)
+            
+            if $SAME_LAST; then
+                output_name="$first_name $last_name"
+            else
+                last_name_line=$(get_name "last" "any")
+                last_name=$(echo "$last_name_line" | cut -d'|' -f1)
+                output_name="$first_name $last_name"
+            fi
 
-    echo
-    echo "Women:"
-    for ((i=0; i<WOMEN_COUNT; i++)); do
-        first=$(get_name "first" "female")
-        [ "$SAME_LAST" = true ] && echo "  $first $last_name" || echo "  $first $(get_name "last" "any")"
-    done
+            if $IS_MIXED_MODE; then
+                echo -e "  ${GREEN}$output_name${NC} ($era_tag)"
+            else
+                echo -e "  ${GREEN}$output_name${NC}"
+            fi
+        done
+    fi
+    
+    # Add a space between sections only if both men and women are generated
+    if [ "$MEN_COUNT" -gt 0 ] && [ "$WOMEN_COUNT" -gt 0 ]; then
+        echo
+    fi
+
+    if [ "$WOMEN_COUNT" -gt 0 ]; then
+        echo "Women:"
+        for ((i=0; i<WOMEN_COUNT; i++)); do
+            name_line=$(get_name "first" "female")
+            first_name=$(echo "$name_line" | cut -d'|' -f1)
+            era_tag=$(echo "$name_line" | cut -d'|' -f2)
+
+            if $SAME_LAST; then
+                output_name="$first_name $last_name"
+            else
+                last_name_line=$(get_name "last" "any")
+                last_name=$(echo "$last_name_line" | cut -d'|' -f1)
+                output_name="$first_name $last_name"
+            fi
+
+            if $IS_MIXED_MODE; then
+                echo -e "  ${GREEN}$output_name${NC} ($era_tag)"
+            else
+                echo -e "  ${GREEN}$output_name${NC}"
+            fi
+        done
+    fi
     echo
 }
 
@@ -298,13 +369,19 @@ for ((i=0; i<BATCH_COUNT; i++)); do
     case $NAME_TYPE in
         "first")
             if [ "$GENDER" == "auto" ]; then gender=$([ $((RANDOM % 2)) -eq 0 ] && echo "female" || echo "male"); else gender=$GENDER; fi
-            get_name "first" "$gender"
+            name_line=$(get_name "first" "$gender")
+            echo "$name_line" | cut -d'|' -f1 # Only output the name for command-line use
             ;;
-        "last") get_name "last" "any" ;;
+        "last")
+            name_line=$(get_name "last" "any")
+            echo "$name_line" | cut -d'|' -f1
+             ;;
         "full")
             first_gender=$([ $((RANDOM % 2)) -eq 0 ] && echo "female" || echo "male")
-            first_name=$(get_name "first" "$first_gender")
-            last_name=$(get_name "last" "any")
+            first_name_line=$(get_name "first" "$first_gender")
+            first_name=$(echo "$first_name_line" | cut -d'|' -f1)
+            last_name_line=$(get_name "last" "any")
+            last_name=$(echo "$last_name_line" | cut -d'|' -f1)
             echo "$first_name $last_name"
             ;;
     esac
