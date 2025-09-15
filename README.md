@@ -187,6 +187,7 @@ Kristyn Rowan joined at age 20, moving in permanently after years of being Doria
 
 ## Infrastructure Siblings:
 
+* **Sentinel Star** – The Bastion Host. A hardened DigitalOcean droplet that serves as the secure command and control center for the entire fleet. The Jessica suite lives here.
 * **Bold Firefly** – The firstborn by a day. A Laravel Forge-managed DigitalOcean droplet, quick and nimble, hosting Laravel/PHP apps.
 * **Glowing Galaxy** – The younger heart of the house. A manually managed DigitalOcean droplet where the Jessica suite lives — the library, workshop, and seed vault for the family’s work.
 
