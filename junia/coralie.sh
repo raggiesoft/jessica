@@ -9,10 +9,13 @@
 # === Identity Variables ===
 SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-NAME_LIST_DIR="$SCRIPT_DIR/list" # Corrected path
-EXCLUDE_FILE="$SCRIPT_DIR/list/.exclude_names.txt" # Corrected path
+NAME_LIST_DIR="$SCRIPT_DIR/list"
+EXCLUDE_FILE="$SCRIPT_DIR/list/.exclude_names.txt"
 LOG_FILE="$SCRIPT_DIR/logs/namegen.log"
 LAVINIA="$SCRIPT_DIR/list/lavinia.sh"
+
+# Ensure the log directory exists before trying to write to it
+mkdir -p "$(dirname "$LOG_FILE")"
 
 # === Color Codes ===
 RED='\033[0;31m'
@@ -81,7 +84,7 @@ get_name() {
         [ "$name_source" == "first" ] && name_file="$nat_dir/${gender}_first.txt"
 
         if [ "$USE_API" = false ] && [ -f "$name_file" ]; then
-            proper_name=$(get_name_from_file "$name_file")
+            proper_name=$(get_name_from_file "$file_path")
         else
             [ "$USE_API" = true ] && echo "Forcing API lookup..." >&2
             local api_result
