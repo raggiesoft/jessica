@@ -20,6 +20,7 @@ mkdir -p "$(dirname "$LOG_FILE")"
 # === Color Codes ===
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
 NC='\033[0m'
 
 # === Default Parameters ===
@@ -35,6 +36,7 @@ SAFE_OUTPUT=false
 # === Functions ===
 usage() {
     echo "Usage: $SCRIPT_NAME [OPTIONS]"
+    echo "Running with no options will start interactive character creation mode."
     echo ""
     echo "Name generation options:"
     echo "  -n, --nat    [code]  : Nationality code (us, ca, etc). Default: us"
@@ -84,7 +86,7 @@ get_name() {
         [ "$name_source" == "first" ] && name_file="$nat_dir/${gender}_first.txt"
 
         if [ "$USE_API" = false ] && [ -f "$name_file" ]; then
-            proper_name=$(get_name_from_file "$file_path")
+            proper_name=$(get_name_from_file "$name_file")
         else
             [ "$USE_API" = true ] && echo "Forcing API lookup..." >&2
             local api_result
@@ -120,11 +122,72 @@ get_name() {
     done
 }
 
+# === NEW: Interactive Mode for Character Generation ===
+interactive_mode() {
+    echo -e "${GREEN}--- Interactive Character Generation ---${NC}"
+    local MEN_COUNT
+    local WOMEN_COUNT
+    local same_last_choice
+    local SAME_LAST=true
+
+    # Get number of men with validation
+    while true; do
+        read -rp "How many men? " MEN_COUNT
+        if [[ "$MEN_COUNT" =~ ^[1-9][0-9]*$ ]]; then
+            break
+        else
+            echo -e "${RED}Please enter a number that is 1 or greater.${NC}"
+        fi
+    done
+
+    # Get number of women with validation
+    while true; do
+        read -rp "How many women? " WOMEN_COUNT
+        if [[ "$WOMEN_COUNT" =~ ^[1-9][0-9]*$ ]]; then
+            break
+        else
+            echo -e "${RED}Please enter a number that is 1 or greater.${NC}"
+        fi
+    done
+
+    # Ask if they should share a last name
+    read -rp "Should they all share the same last name? [Y/n]: " same_last_choice
+    # Default to "Y" if input is empty
+    same_last_choice=${same_last_choice:-Y}
+    [[ "$same_last_choice" =~ ^[Nn]$ ]] && SAME_LAST=false
+
+    # This mode is always "creative"
+    NAME_MODE="creative"
+
+    if $SAME_LAST; then
+        last_name=$(get_name "last" "any")
+        echo -e "\n${YELLOW}--- Family: The ${last_name}s ---${NC}\n"
+    else
+        echo -e "\n${YELLOW}--- Generated Characters ---${NC}\n"
+    fi
+
+    echo "Men:"
+    for ((i=0; i<MEN_COUNT; i++)); do
+        first=$(get_name "first" "male")
+        [ "$SAME_LAST" = true ] && echo "  $first $last_name" || echo "  $first $(get_name "last" "any")"
+    done
+
+    echo
+    echo "Women:"
+    for ((i=0; i<WOMEN_COUNT; i++)); do
+        first=$(get_name "first" "female")
+        [ "$SAME_LAST" = true ] && echo "  $first $last_name" || echo "  $first $(get_name "last" "any")"
+    done
+    echo
+}
+
 # === Load Excluded Names ===
 EXCLUDE_NAMES=()
 [ -f "$EXCLUDE_FILE" ] && mapfile -t EXCLUDE_NAMES < <(grep -v '^ *#' < "$EXCLUDE_FILE" | tr '[:upper:]' '[:lower:]' | xargs)
 
-# === Lavinia Pass-Through and Pre-flight Mode ===
+# === Script Entry Point ===
+
+# 1. Check for Lavinia pass-through commands first
 if [[ "$1" == "--sanitize" || "$1" == "--restore" || "$1" == "--delete-backups" ]]; then
     if [[ -x "$LAVINIA" ]]; then
         "$LAVINIA" "$1"
@@ -135,13 +198,19 @@ if [[ "$1" == "--sanitize" || "$1" == "--restore" || "$1" == "--delete-backups" 
     fi
 fi
 
+# 2. If no arguments are given, run interactive mode and exit
+if [ "$#" -eq 0 ]; then
+    interactive_mode
+    exit 0
+fi
+
+# 3. If arguments ARE given, parse them and run standard execution
 SANITIZE_BEFORE=false
 if [[ "$1" == "--sanitize-before" ]]; then
     SANITIZE_BEFORE=true
     shift
 fi
 
-# === Parse Args ===
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -n|--nat) NATIONALITY="$2"; shift;;
@@ -158,7 +227,6 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# === Optional pre-flight sanitize ===
 if $SANITIZE_BEFORE; then
     if [[ -x "$LAVINIA" ]]; then
         echo "🧹 Running Lavinia before generating names..."
@@ -168,29 +236,11 @@ if $SANITIZE_BEFORE; then
     fi
 fi
 
-# === Creative Mode: Family Builder ===
 if [[ "$NAME_MODE" == "creative" && "$NAME_TYPE" == "full" ]]; then
-    echo -n "How many men? : "; read MEN_COUNT
-    echo -n "How many women? : "; read WOMEN_COUNT
-    echo -n "Should they all share the same last name? (y/n) : "; read same_last_choice
-    [[ "$same_last_choice" =~ ^[Yy]$ ]] && SAME_LAST=true || SAME_LAST=false
-
-    if $SAME_LAST; then
-        last_name=$(get_name "last" "any")
-        echo -e "\nFamily with last name: $last_name\n"
-    fi
-    for ((i=0; i<MEN_COUNT; i++)); do
-        first=$(get_name "first" "male")
-        [ "$SAME_LAST" = true ] && echo "$first $last_name" || echo "$first $(get_name "last" "any")"
-    done
-    for ((i=0; i<WOMEN_COUNT; i++)); do
-        first=$(get_name "first" "female")
-        [ "$SAME_LAST" = true ] && echo "$first $last_name" || echo "$first $(get_name "last" "any")"
-    done
-    exit 0
+    echo -e "${RED}For creative full names, please use the interactive mode (run without arguments).${NC}"
+    exit 1
 fi
 
-# === Standard Execution ===
 for ((i=0; i<BATCH_COUNT; i++)); do
     case $NAME_TYPE in
         "first")
