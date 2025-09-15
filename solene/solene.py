@@ -201,9 +201,9 @@ if __name__ == "__main__":
                 elif line.startswith("AMBER_PROFILE="): AMBER_PROFILE = line.split('=', 1)[1].strip('"')
                 elif line.startswith("SALACIA_PROFILE="): SALACIA_PROFILE = line.split('=', 1)[1].strip('"')
                 elif line.startswith("YELLOW=") and (force_color or supports_color()):
-                    YELLOW = line.split('=', 1)[1].strip("'")
+                    YELLOW = line.split('=', 1)[1].strip("'").replace('\\033', '\033')
                 elif line.startswith("NC=") and (force_color or supports_color()):
-                    NC = line.split('=', 1)[1].strip("'")
+                    NC = line.split('=', 1)[1].strip("'").replace('\\033', '\033')
     except (FileNotFoundError, IndexError):
         pass
 
