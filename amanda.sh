@@ -16,8 +16,6 @@
 #
 
 # === Load Central Config ===
-# This pulls in all shared variables from ~/jessica/elise/dorian
-# If the file is missing, Amanda cannot run.
 CONFIG_FILE="$HOME/jessica/elise/dorian"
 if [[ -f "$CONFIG_FILE" ]]; then
     # shellcheck disable=SC1090
@@ -31,11 +29,9 @@ fi
 FIRST_RUN_MARKER="$TOOL_HOME/.first_run_complete"
 
 # === Utility: Pause for user input ===
-# Used after actions so the menu doesn't immediately refresh and hide output.
 pause() { read -rp "Press [Enter] key to continue..."; }
 
 # === Utility: Menu Header ===
-# Clears the screen and prints a consistent header with colors from config.
 menu_header() {
     clear
     echo -e "${YELLOW}=========================================${NC}"
@@ -53,8 +49,24 @@ first_run_experience() {
     echo "Let's get you acquainted with the crew."
     echo
     pause
-    # Kristyn is the best person to introduce the family
-    bash "$CLARA_DIR/kristyn.sh"
+    
+    clear
+    echo -e "${GREEN}Hi, I’m Kristyn.${NC} I live here with my best friend Dorian — we share a room on the ground floor."
+    echo "He’s the only brother in a house full of sisters, and we’re pretty much attached at the hip."
+    echo "Let me introduce you to everyone:"
+    echo "  • Jessica – our oldest sister and the house itself."
+    echo "  • Aubrie – keeper of web pages."
+    echo "  • Daphne – our coordinator."
+    echo "  • Phoebe – the builder."
+    echo "  • Selene – night-shift caretaker."
+    echo "  • Clio – historian."
+    echo "  • Marina – archivist."
+    echo "  • Iris – watcher."
+    echo "  • Thalia – tinkerer."
+    echo "  • Helena – trickster-guardian."
+    echo "  • Amanda – creative whirlwind."
+    echo "And of course, Dorian – my best friend, the keeper of our shared memory."
+
     # Create the marker file so this doesn't run again
     touch "$FIRST_RUN_MARKER"
     echo
@@ -62,26 +74,19 @@ first_run_experience() {
     pause
 }
 
+
 # === Option 1: Create a New Site ===
-# Prompts for domain, generates safe folder/file names via Coralie,
-# logs the mapping, and calls the Site Manager to do the actual creation.
 create_site() {
     echo -e "${GREEN}-- Create a New Site --${NC}"
-
-    # Prompt for the domain or subdomain to create
     read -rp "Enter domain (e.g., example.com or status.example.com): " DOMAIN_NAME
     [ -z "$DOMAIN_NAME" ] && { echo -e "${RED}Domain is required.${NC}"; pause; return; }
 
     echo -e "${YELLOW}Generating sanitized stealth names via Coralie...${NC}"
     NAMEGEN_CMD="$NAMEGEN_DIR/coralie.sh"
-
-    # Generate one male and two female names, with Lavinia pre-clean on the first call
     MALE_NAME=$(bash "$NAMEGEN_CMD" --sanitize-before --mode "$CORALIE_MODE" --case "$CORALIE_CASE" --type first --gender male)
     FEMALE1_NAME=$(bash "$NAMEGEN_CMD" --mode "$CORALIE_MODE" --case "$CORALIE_CASE" --type first --gender female)
     FEMALE2_NAME=$(bash "$NAMEGEN_CMD" --mode "$CORALIE_MODE" --case "$CORALIE_CASE" --type first --gender female)
 
-    # Randomly decide which name goes where:
-    # - At most one male name is used; the rest are female
     if (( RANDOM % 2 )); then
         ROUTER_FOLDER="$FEMALE1_NAME"
         APP_FOLDER="$MALE_NAME"
@@ -92,18 +97,13 @@ create_site() {
         ROUTER_FILE="${MALE_NAME}${ROUTER_FILE_EXTENSION}"
     fi
 
-    # Show the chosen names to the user
     echo -e "Router folder: ${GREEN}$ROUTER_FOLDER${NC}"
     echo -e "App folder:    ${GREEN}$APP_FOLDER${NC}"
     echo -e "Router file:   ${GREEN}$ROUTER_FILE${NC}"
 
-    # Log the mapping to the central deployment log for auditing
     echo "$(date '+%F %T') | CREATE | $DOMAIN_NAME | router_dir=$ROUTER_FOLDER | app_dir=$APP_FOLDER | router_file=$ROUTER_FILE" >> "$DEPLOYMENT_LOG"
-
-    # Also log the action to the audit log
     echo "$(date '+%F %T') | Amanda | Site creation triggered for $DOMAIN_NAME" >> "$AUDIT_LOG"
 
-    # Call the Site Manager to actually create the site
     if bash "$SITE_MANAGER_SCRIPT" create \
         --domain "$DOMAIN_NAME" \
         --router-dir "$ROUTER_FOLDER" \
@@ -115,16 +115,13 @@ create_site() {
         echo -e "${RED}Site creation failed.${NC}"
         echo "$(date '+%F %T') | ERROR | Amanda | Site creation failed for $DOMAIN_NAME" >> "$ERROR_LOG"
     fi
-
     pause
 }
 
 # === Option 2: Destroy an Existing Site ===
-# Calls the Site Manager's destroy function and logs the action.
 destroy_site() {
     echo -e "${GREEN}-- Destroy an Existing Site --${NC}"
     echo "$(date '+%F %T') | Amanda | Site destroy triggered" >> "$AUDIT_LOG"
-
     if bash "$SITE_MANAGER_SCRIPT" destroy; then
         echo -e "${GREEN}Site destroyed.${NC}"
     else
@@ -135,11 +132,9 @@ destroy_site() {
 }
 
 # === Option 3: Rotate Router & Deploy Honeypot ===
-# Honeypotify the old router, then rotate to a new one via Site Manager.
 rotate_router() {
     echo -e "${GREEN}-- Rotate Router & Deploy Honeypot --${NC}"
     echo "$(date '+%F %T') | Amanda | Router rotation triggered" >> "$AUDIT_LOG"
-
     if bash "$HONEYPOT_SCRIPT" && bash "$SITE_MANAGER_SCRIPT" rotate-router; then
         echo -e "${GREEN}Router rotated and honeypot deployed.${NC}"
     else
@@ -150,7 +145,6 @@ rotate_router() {
 }
 
 # === Option 4: Generate a Random Name ===
-# Quick utility to call Coralie directly for a single name.
 generate_name() {
     echo -e "${GREEN}-- Generate a Random Name via Coralie --${NC}"
     NAMEGEN_CMD="$NAMEGEN_DIR/coralie.sh"
